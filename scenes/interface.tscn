@@ -1,0 +1,328 @@
+[gd_scene load_steps=15 format=3 uid="uid://cqnumqo55jik7"]
+
+[ext_resource type="Script" path="res://scenes/interface.gd" id="1_x0kiy"]
+[ext_resource type="PackedScene" uid="uid://d1j2gpd63dy0y" path="res://scenes/player.tscn" id="2_0o0f1"]
+[ext_resource type="Script" path="res://scripts/opponent.gd" id="3_fkv74"]
+[ext_resource type="Script" path="res://scripts/labels.gd" id="4_mxvqg"]
+[ext_resource type="Script" path="res://scenes/traps.gd" id="5_d673i"]
+[ext_resource type="Texture2D" uid="uid://cy1twsn36m7rc" path="res://graphics/dark_texture.png" id="5_x8kd3"]
+[ext_resource type="Script" path="res://scripts/listen.gd" id="6_khqpx"]
+[ext_resource type="Script" path="res://scripts/shot.gd" id="7_qcyx1"]
+[ext_resource type="Texture2D" uid="uid://b0ht1o1qfqy74" path="res://graphics/revolver-noir-jeu-9-1024x710.png" id="8_71igm"]
+[ext_resource type="Script" path="res://scripts/map.gd" id="9_fbqcs"]
+[ext_resource type="Script" path="res://scenes/action_buttons.gd" id="9_l2e0b"]
+[ext_resource type="Texture2D" uid="uid://yqegub2krnb2" path="res://graphics/icon.svg" id="10_nqhrk"]
+[ext_resource type="PackedScene" uid="uid://dl3n65ke5al5g" path="res://scenes/overlay.tscn" id="11_rpv3s"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_gkf33"]
+properties/0/path = NodePath("Map_texture/Map/kitchen:button_pressed")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath("Map_texture/Map/dining_room:button_pressed")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath("Map_texture/Map/hall:button_pressed")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+properties/3/path = NodePath("Map_texture/Map/balcony:button_pressed")
+properties/3/spawn = true
+properties/3/replication_mode = 1
+properties/4/path = NodePath("Map_texture/Map/basement:button_pressed")
+properties/4/spawn = true
+properties/4/replication_mode = 1
+properties/5/path = NodePath("Map_texture/Map/corridor:button_pressed")
+properties/5/spawn = true
+properties/5/replication_mode = 1
+properties/6/path = NodePath("Map_texture/Map/bedroom:button_pressed")
+properties/6/spawn = true
+properties/6/replication_mode = 1
+properties/7/path = NodePath("Map_texture/Map/library:button_pressed")
+properties/7/spawn = true
+properties/7/replication_mode = 1
+
+[node name="Interface" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_x0kiy")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.5
+delta_interval = 0.5
+replication_config = SubResource("SceneReplicationConfig_gkf33")
+
+[node name="Player" parent="." instance=ExtResource("2_0o0f1")]
+
+[node name="PlayerPeer" parent="." instance=ExtResource("2_0o0f1")]
+
+[node name="Opponent" type="Control" parent="."]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("3_fkv74")
+
+[node name="Map_texture" type="TextureRect" parent="."]
+layout_mode = 2
+offset_top = -12.0
+offset_right = 540.0
+offset_bottom = 743.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+texture = ExtResource("8_71igm")
+
+[node name="TextureRect" type="TextureRect" parent="Map_texture"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 145.0
+grow_horizontal = 2
+texture = ExtResource("5_x8kd3")
+
+[node name="Map" type="Control" parent="Map_texture"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("9_fbqcs")
+
+[node name="kitchen" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.259259
+anchor_top = 0.470952
+anchor_right = 0.398148
+anchor_bottom = 0.563659
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="dining_room" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.216667
+anchor_top = 0.611866
+anchor_right = 0.355556
+anchor_bottom = 0.704574
+offset_top = 3.05176e-05
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="hall" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.446296
+anchor_top = 0.627936
+anchor_right = 0.585185
+anchor_bottom = 0.720643
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="balcony" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.437037
+anchor_top = 0.363412
+anchor_right = 0.575926
+anchor_bottom = 0.456119
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="basement" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.416667
+anchor_top = 0.7911
+anchor_right = 0.555556
+anchor_bottom = 0.883807
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="corridor" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.422222
+anchor_top = 0.248455
+anchor_right = 0.561111
+anchor_bottom = 0.341162
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="bedroom" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.237037
+anchor_top = 0.244747
+anchor_right = 0.375926
+anchor_bottom = 0.337454
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="library" type="TextureButton" parent="Map_texture/Map"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.594444
+anchor_top = 0.245983
+anchor_right = 0.733333
+anchor_bottom = 0.33869
+grow_horizontal = 2
+grow_vertical = 2
+texture_normal = ExtResource("10_nqhrk")
+ignore_texture_size = true
+stretch_mode = 0
+metadata/_edit_use_anchors_ = true
+
+[node name="UI" type="VBoxContainer" parent="."]
+layout_mode = 1
+offset_right = 540.0
+offset_bottom = 960.0
+mouse_filter = 2
+
+[node name="Labels" type="VBoxContainer" parent="UI"]
+layout_mode = 2
+size_flags_vertical = 2
+script = ExtResource("4_mxvqg")
+
+[node name="Players_label" type="HBoxContainer" parent="UI/Labels"]
+layout_mode = 2
+
+[node name="P1" type="Label" parent="UI/Labels/Players_label"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Player 1"
+horizontal_alignment = 1
+
+[node name="P2" type="Label" parent="UI/Labels/Players_label"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Player 2"
+horizontal_alignment = 1
+
+[node name="players_localisation" type="HBoxContainer" parent="UI/Labels"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="P1_room" type="Label" parent="UI/Labels/players_localisation"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 6
+text = "Localisation"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="P2_room" type="Label" parent="UI/Labels/players_localisation"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 6
+text = "Localisation"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="game_phase" type="Label" parent="UI/Labels"]
+layout_mode = 2
+size_flags_vertical = 6
+text = "Game Phase"
+horizontal_alignment = 1
+
+[node name="Action_Buttons" type="VBoxContainer" parent="UI"]
+layout_mode = 2
+theme_override_constants/separation = 10
+script = ExtResource("9_l2e0b")
+
+[node name="Room_skill" type="HBoxContainer" parent="UI/Action_Buttons"]
+layout_mode = 2
+
+[node name="skill_button" type="Button" parent="UI/Action_Buttons/Room_skill"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Room Skill"
+
+[node name="skill_description" type="Label" parent="UI/Action_Buttons/Room_skill"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Here goes the room's skill description if any, otherwise this text box is invisible"
+autowrap_mode = 3
+
+[node name="Traps_Listen" type="HBoxContainer" parent="UI/Action_Buttons"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Traps" type="VBoxContainer" parent="UI/Action_Buttons/Traps_Listen"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+script = ExtResource("5_d673i")
+
+[node name="Trap_1" type="Button" parent="UI/Action_Buttons/Traps_Listen/Traps"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Trap 1"
+
+[node name="Trap_2" type="Button" parent="UI/Action_Buttons/Traps_Listen/Traps"]
+layout_mode = 2
+text = "Trap 2"
+
+[node name="Listen" type="Button" parent="UI/Action_Buttons/Traps_Listen"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Listen"
+script = ExtResource("6_khqpx")
+
+[node name="Shot" type="Button" parent="UI/Action_Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Shot"
+script = ExtResource("7_qcyx1")
+
+[node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
+layout_mode = 1
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_right = 540.0
+offset_bottom = 960.0
+grow_horizontal = 1
+grow_vertical = 1
+
+[connection signal="pressed" from="UI/Action_Buttons/Room_skill/skill_button" to="UI/Action_Buttons" method="_on_skill_button_pressed"]
+[connection signal="pressed" from="UI/Action_Buttons/Traps_Listen/Traps/Trap_1" to="UI/Action_Buttons/Traps_Listen/Traps" method="_on_trap_1_pressed"]
+[connection signal="pressed" from="UI/Action_Buttons/Traps_Listen/Traps/Trap_2" to="UI/Action_Buttons/Traps_Listen/Traps" method="_on_trap_2_pressed"]
+[connection signal="pressed" from="UI/Action_Buttons/Traps_Listen/Listen" to="UI/Action_Buttons/Traps_Listen/Listen" method="_on_pressed"]
+[connection signal="pressed" from="UI/Action_Buttons/Shot" to="UI/Action_Buttons/Shot" method="_on_pressed"]
