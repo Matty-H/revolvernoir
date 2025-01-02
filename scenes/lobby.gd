@@ -1,136 +1,157 @@
 extends VBoxContainer
 
-
+# Node References
 @onready var control: Control = $".."
 @export var spawn_level: PackedScene
 @onready var level: Control = $"../level"
 @onready var lobby: VBoxContainer = $"."
+@onready var player_1_label: Label = $Player1
+@onready var player_2_label: Label = $Player2
+@onready var start_menu: VBoxContainer = $"../Start_menu"
+@onready var interface: Control = $"../level/Interface"
 
-@onready var player_1: Label = $Player1
-@onready var player_2: Label = $Player2
+# Network Constants
+const PORT: int = 123
+const DEFAULT_SERVER_IP: String = "127.0.0.1"
+const MAX_CONNECTIONS: int = 2
 
+# Variables
+var players: Dictionary = {}
+var player_info: Dictionary = {"name": "Name"}
+var players_loaded: int = 0
 
-
+# Signals
 signal player_connected(peer_id, player_info)
 signal player_disconnected(peer_id)
 signal server_disconnected
+signal server_shutdown
 
-const PORT = 123
-const DEFAULT_SERVER_IP = "127.0.0.1"
-const MAX_CONNECTIONS = 20
-
-var players = {}
-var player_info = {"name": "Name"}
-
-var players_loaded = 0
-
-# Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	pass # Replace with function body.
+	_reset_labels()
 
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-func hosting():
-	var peer = ENetMultiplayerPeer.new()
-	peer.create_server(PORT)
-	if peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
-		OS.alert("Failed to start multiplayer server.")
+# Network Methods
+func host_game() -> void:
+	var peer := ENetMultiplayerPeer.new()
+	if peer.create_server(PORT) != OK:
+		print("Failed to start multiplayer server.")
 		return
-	multiplayer.multiplayer_peer = peer
-	#multiplayer.peer_connected.connect(_add_player)
-	_add_player()
+	_setup_multiplayer_peer(peer)
+	#_add_player(1)
 
-
-func _add_player(id = 1):
-	var player_id = spawn_level.instantiate()
-	player_id.name = str(id)
-	print("Player ID: "+str(id))
-	call_deferred("add_child",player_id)
-	start_game()
-
-
-func joining(address = ""):
+func join_game(address: String = "") -> Error:
 	if address.is_empty():
 		address = DEFAULT_SERVER_IP
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_client(address, PORT)
-	if error:
+	
+	var peer := ENetMultiplayerPeer.new()
+	var error := peer.create_client(address, PORT)
+	if error != OK:
+		push_error("Failed to connect to server.")
 		return error
+	
+	_setup_multiplayer_peer(peer)
+	return OK
+
+func _setup_multiplayer_peer(peer: MultiplayerPeer) -> void:
 	multiplayer.multiplayer_peer = peer
+	multiplayer.peer_connected.connect(_on_player_connected)
+	multiplayer.peer_disconnected.connect(_on_player_disconnected)
+	multiplayer.connected_to_server.connect(_on_connected_ok)
+	multiplayer.connection_failed.connect(_on_connected_fail)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
+# Player Management
+@rpc("any_peer", "reliable")
+func _register_player(new_player_info: Dictionary) -> void:
+	var new_player_id = multiplayer.get_remote_sender_id()
+	players[new_player_id] = new_player_info
+	emit_signal("player_connected", new_player_id, new_player_info)
+	_update_labels()
 
-func change_level(scene: PackedScene):
-	for c in level.get_children():
-		level.remove_child(c)
-		c.queue_free()
-		# Add new level.
-	level.add_child(scene.instantiate())
-
-
-func start_game():
-		lobby.visible = false
-		if multiplayer.is_server():
-			change_level(load("res://scenes/interface.tscn"))
-		else:
-			print("IUHLIH")
-
-func create_game():
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(PORT, MAX_CONNECTIONS)
-	if error:
-		return error
-	multiplayer.multiplayer_peer = peer
-
-	players[1] = player_info
-	player_connected.emit(1, player_info)
-
-func remove_multiplayer_peer():
-	multiplayer.multiplayer_peer = null
-
-@rpc("call_local", "reliable")
-func load_game(game_scene_path):
-	get_tree().change_scene_to_file(game_scene_path)
-
-@rpc("any_peer", "call_local", "reliable")
-func player_loaded():
+@rpc("any_peer", "reliable")
+func player_loaded() -> void:
 	if multiplayer.is_server():
 		players_loaded += 1
 		if players_loaded == players.size():
-			$/root/Game.start_game()
+			$"/root/Game".start_game()
 			players_loaded = 0
 
-func _on_player_connected(id):
-	_register_player.rpc_id(id, player_info)
+func _add_player(id: int) -> void:
+	if not spawn_level:
+		push_error("No spawn_level scene provided!")
+		return
+	
+	var player_instance = spawn_level.instantiate()
+	player_instance.name = str(id)
+	call_deferred("add_child", player_instance)
+	players[id] = player_info
+	_update_labels()
+
+func _remove_player(peer_id: int) -> void:
+	players.erase(peer_id)
+	emit_signal("player_disconnected", peer_id)
+	_update_labels()
+
+@rpc
+func notify_disconnect(peer_id: int) -> void:
+	print("Peer déconnecté : ", peer_id)
 
 @rpc("any_peer", "reliable")
-func _register_player(new_player_info):
-	var new_player_id = multiplayer.get_remote_sender_id()
-	players[new_player_id] = new_player_info
-	player_connected.emit(new_player_id, new_player_info)
+func _disconnect_from_server() -> void:
+	multiplayer.multiplayer_peer.close()		
 
+# Level Management
+func _change_level(scene: PackedScene) -> void:
+	if not scene:
+		push_error("Invalid scene provided!")
+		return
+	
+	for child in level.get_children():
+		level.remove_child(child)
+		child.queue_free()
+	
+	var new_level = scene.instantiate()
+	level.add_child(new_level)
 
-func _on_player_disconnected(id):
-	players.erase(id)
-	player_disconnected.emit(id)
+@rpc("call_local", "reliable")
+func load_game(game_scene_path: String) -> void:
+	get_tree().change_scene_to_file(game_scene_path)
 
+# Network Event Handlers
+func _on_player_connected(peer_id: int) -> void:
+	_register_player.rpc_id(peer_id, player_info)
 
-func _on_connected_ok():
+func _on_player_disconnected(peer_id: int) -> void:
+	_remove_player(peer_id)
+	if peer_id == 1:
+		print("Host disconnected! Shutting down the server...")
+		if multiplayer.is_server():
+			multiplayer.multiplayer_peer.quit()
+
+func _on_connected_ok() -> void:
 	var peer_id = multiplayer.get_unique_id()
 	players[peer_id] = player_info
-	player_connected.emit(peer_id, player_info)
+	emit_signal("player_connected", peer_id, player_info)
+	_update_labels()
 
+func _on_connected_fail() -> void:
+	print("Connection failed")
+	pass
 
-func _on_connected_fail():
-	multiplayer.multiplayer_peer = null
-
-
-func _on_server_disconnected():
-	multiplayer.multiplayer_peer = null
+func _on_server_disconnected() -> void:
 	players.clear()
-	server_disconnected.emit()
+	emit_signal("server_disconnected")
 
-#func _on_ready_pressed() -> void:
+func _reset_labels() -> void:
+	player_1_label.text = "Host: Waiting..."
+	player_2_label.text = "Player 2: Waiting..."
+
+func _update_labels() -> void:
+	player_1_label.text = "Host: " + ("Hosting" if multiplayer.is_server() else "Connected" if players.has(1) else "Waiting...")
 	
+	var other_player_ids = players.keys()
+	other_player_ids.erase(1)
+	player_2_label.text = "Player 2: " + (str(other_player_ids[0]) if other_player_ids else "Waiting...")
+
+@rpc("any_peer", "reliable")
+func print_hello() -> void:
+	lobby.visible = not lobby.visible
