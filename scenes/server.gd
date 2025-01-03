@@ -13,8 +13,9 @@ signal player_disconnected(peer_id)
 signal server_disconnected
 
 # Network Constants
-const PORT = 7000
-const MAX_CONNECTIONS = 2
+const PORT : int = 7000
+const MAX_CONNECTIONS : int = 2
+const IP_RANGE : String = "192.168.1.255"
 
 # Variables
 var broadcastTimer : Timer
@@ -23,8 +24,8 @@ var listener : PacketPeerUDP
 var peer = ENetMultiplayerPeer
 var joining : bool = false
 
-@export var listenPort : int = PORT
-@export var broadcastPort : int = listenPort+1
+var listenPort : int = PORT
+var broadcastPort : int = listenPort+1
 
 var server_ip = "127.0.0.1"
 var players = {}  # Player info for every connected player
@@ -45,11 +46,13 @@ func _process(delta):
 		var data = bytes.get_string_from_ascii()
 		var roomInfo = JSON.parse_string(data)
 		
-		print("Server Ip: " + serverip + "Server Port: " + str(serverport))
+		print("Server Ip: " + serverip + " | Server Port: " + str(serverport))
+		
+		connection_server(serverip)
+		
 		
 
 func _ready():
-	listeningPort()
 	broadcastTimer = $BroadcastTimer
 	room_info.ip_address = _get_self_local_ip()
 	room_info.name = _get_name()
@@ -68,7 +71,7 @@ func listeningPort():
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
 	broadcaster.set_broadcast_enabled(true)
-	broadcaster.set_dest_address('192.168.1.255', listenPort)
+	broadcaster.set_dest_address(IP_RANGE, listenPort)
 	if broadcaster.bind(broadcastPort) == OK:
 		print("Bounded to " + str(broadcastPort))
 	else:
@@ -117,15 +120,17 @@ func host_game():
 	_add_local_player(1)
 
 func join_game():
-	joining = true
 	#var address = "192.168.1.215"
+	joining = true
 	listeningPort()
-	var address = ""
+
+func connection_server(address):
 	peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(address, PORT)
 	if error != OK:
 		print("Failed to connect to server.")
 		return
+	joining = false
 	multiplayer.multiplayer_peer = peer
 
 # --- Signal Handlers ---
