@@ -7,6 +7,7 @@ extends Control
 @onready var multiplayer_spawner: MultiplayerSpawner = $MultiplayerSpawner
 @onready var host: Button = $Start_menu/HBoxContainer/Host
 @onready var join: Button = $Start_menu/HBoxContainer/Join
+@onready var server: Node = $Server
 
 func _on_play_pressed() -> void:
 	lobby.visible = false
@@ -23,18 +24,20 @@ func _on_quit_pressed() -> void:
 func _on_host_pressed() -> void:
 	start_menu.visible = false
 	lobby.visible = true
-	lobby.host_game()
+	server.host_game()
+	server.setUpBroadcast()
  
 func _on_join_pressed():
 	start_menu.visible = false
 	lobby.visible = true
-	lobby.join_game()
+	server.join_game()
 
 func _on_back_pressed() -> void:	
-	lobby.leave_lobby()
+	server.leave_lobby()
+	server.cleanUpUDP()
 
 func _on_ready_pressed() -> void:
-	lobby.player_ready()
+	server.player_ready()
 	#lobby.print_hello.rpc()
 
 @rpc("any_peer")

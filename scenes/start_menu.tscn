@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/start_menu.gd" id="1_vt67u"]
 [ext_resource type="PackedScene" uid="uid://d1j2gpd63dy0y" path="res://scenes/player.tscn" id="2_gc6ul"]
-[ext_resource type="Script" path="res://scenes/lobby.gd" id="3_h56wk"]
+[ext_resource type="Script" path="res://scenes/server.gd" id="3_uw48u"]
 
 [node name="Control" type="Control"]
 layout_mode = 3
@@ -14,6 +14,18 @@ grow_vertical = 2
 script = ExtResource("1_vt67u")
 player_scene = ExtResource("2_gc6ul")
 
+[node name="Server" type="Node" parent="."]
+script = ExtResource("3_uw48u")
+
+[node name="BroadcastTimer" type="Timer" parent="Server"]
+
+[node name="Bounding" type="Label" parent="Server"]
+offset_left = 15.0
+offset_top = 931.0
+offset_right = 98.0
+offset_bottom = 954.0
+text = "Bounding: "
+
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/interface.tscn")
 spawn_path = NodePath("../level")
@@ -22,6 +34,7 @@ spawn_path = NodePath("../level")
 anchors_preset = 0
 
 [node name="Start_menu" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
@@ -44,26 +57,31 @@ layout_mode = 2
 size_flags_vertical = 3
 
 [node name="Host" type="Button" parent="Start_menu/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Host"
 
 [node name="Join" type="Button" parent="Start_menu/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Join"
 
 [node name="Settings" type="Button" parent="Start_menu"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 text = "Settings"
 
 [node name="Quit" type="Button" parent="Start_menu"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 text = "Quit"
 
 [node name="Lobby" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
 visible = false
 layout_mode = 1
 anchors_preset = 12
@@ -76,7 +94,6 @@ offset_right = -50.0
 offset_bottom = -123.0
 grow_horizontal = 2
 grow_vertical = 0
-script = ExtResource("3_h56wk")
 
 [node name="Ready" type="Button" parent="Lobby"]
 layout_mode = 2
@@ -90,9 +107,11 @@ size_flags_vertical = 6
 text = "Player :"
 
 [node name="Player1" type="Label" parent="Lobby"]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="Player2" type="Label" parent="Lobby"]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="Back" type="Button" parent="Lobby"]
@@ -100,6 +119,7 @@ layout_mode = 2
 size_flags_vertical = 3
 text = "Back"
 
+[connection signal="timeout" from="Server/BroadcastTimer" to="Server" method="_on_broadcast_timer_timeout"]
 [connection signal="pressed" from="Start_menu/Play" to="." method="_on_play_pressed"]
 [connection signal="pressed" from="Start_menu/HBoxContainer/Host" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="Start_menu/HBoxContainer/Join" to="." method="_on_join_pressed"]
