@@ -13,7 +13,7 @@ signal player_disconnected(peer_id)
 signal server_disconnected
 
 # Network Constants
-const PORT : int = 7000
+const PORT : int = 6000
 const MAX_CONNECTIONS : int = 2
 const IP_RANGE : String = "192.168.1.255"
 
@@ -45,10 +45,10 @@ func _process(delta):
 		var bytes = listener.get_packet()
 		var data = bytes.get_string_from_ascii()
 		var roomInfo = JSON.parse_string(data)
-		
 		print("Server Ip: " + serverip + " | Server Port: " + str(serverport))
 		
-		connection_server(serverip)
+		if serverip != "": #BUG GODOT ? Without, windows build bypass the error check on connection_server
+			connection_server(serverip)
 		
 		
 
@@ -86,7 +86,8 @@ func _on_broadcast_timer_timeout() -> void:
 	pass # Replace with function body.
 
 func cleanUp_UDP():
-	listener.close()
+	if listener != null:
+		listener.close()
 	$BroadcastTimer.stop()
 	if broadcaster != null:
 		broadcaster.close()
@@ -206,8 +207,11 @@ func player_ready():
 			all_ready = false
 			break
 	if all_ready:
-		print("Start Game")
+		rpc("print_hello")
 
+@rpc("any_peer")
+func print_hello():
+	print("Start Game")
 
 @rpc("any_peer", "reliable")
 func notify_player_ready(player_id, status):

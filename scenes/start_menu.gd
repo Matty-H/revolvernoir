@@ -38,8 +38,3 @@ func _on_back_pressed() -> void:
 
 func _on_ready_pressed() -> void:
 	server.player_ready()
-	#lobby.print_hello.rpc()
-
-@rpc("any_peer")
-func print_hello():
-	print("Hello from peer!")
