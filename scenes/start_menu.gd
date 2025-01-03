@@ -6,6 +6,8 @@ extends Control
 @onready var interface: Control = $level/Interface
 @onready var level: Control = $level
 @onready var multiplayer_spawner: MultiplayerSpawner = $MultiplayerSpawner
+@onready var host: Button = $Start_menu/HBoxContainer/Host
+@onready var join: Button = $Start_menu/HBoxContainer/Join
 
 func _on_play_pressed() -> void:
 	lobby.visible = false
@@ -29,13 +31,13 @@ func _on_join_pressed():
 	lobby.visible = true
 	lobby.join_game()
 
-func _on_back_pressed() -> void:
-	lobby._disconnect_from_server.rpc()
-	
-	start_menu.visible = true
-	lobby.visible = false
+func _on_back_pressed() -> void:	
+	lobby.leave_lobby()
 
 func _on_ready_pressed() -> void:
-	#if lobby.players.size() > 0:
-		#print(lobby.players.keys()[0])
-	lobby.print_hello.rpc()
+	lobby.player_ready()
+	#lobby.print_hello.rpc()
+
+@rpc("any_peer")
+func print_hello():
+	print("Hello from peer!")

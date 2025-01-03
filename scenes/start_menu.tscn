@@ -104,5 +104,5 @@ text = "Back"
 [connection signal="pressed" from="Start_menu/HBoxContainer/Join" to="." method="_on_join_pressed"]
 [connection signal="pressed" from="Start_menu/Settings" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="Start_menu/Quit" to="." method="_on_quit_pressed"]
-[connection signal="pressed" from="Lobby/Ready" to="Lobby" method="_on_ready_pressed"]
+[connection signal="pressed" from="Lobby/Ready" to="." method="_on_ready_pressed"]
 [connection signal="pressed" from="Lobby/Back" to="." method="_on_back_pressed"]
