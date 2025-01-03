@@ -1,5 +1,7 @@
 extends Node
 
+@export var running_local : bool = true
+
 @onready var server: Node = $"."
 @onready var player_1_label: Label = %Player1
 @onready var player_2_label: Label = %Player2
@@ -21,7 +23,7 @@ const IP_RANGE : String = "192.168.1.255"
 var broadcastTimer : Timer
 var broadcaster : PacketPeerUDP
 var listener : PacketPeerUDP
-var peer = ENetMultiplayerPeer
+var peer : ENetMultiplayerPeer
 var joining : bool = false
 
 var listenPort : int = PORT
@@ -34,26 +36,26 @@ var room_info = {
 	"ip_address": "",
 	"is_ready": false
 }
-var players_loaded = 0
 
 func _process(delta):
 	if not joining:
 		return
-	if listener.get_available_packet_count() > 0:
-		var serverip = listener.get_packet_ip()
-		var serverport = listener.get_packet_port()
-		var bytes = listener.get_packet()
-		var data = bytes.get_string_from_ascii()
-		var roomInfo = JSON.parse_string(data)
-		print("Server Ip: " + serverip + " | Server Port: " + str(serverport))
-		
-		if serverip != "": #BUG GODOT ? Without, windows build bypass the error check on connection_server
-			connection_server(serverip)
+	#if listener.get_available_packet_count() > 0:
+		#var serverip : String = listener.get_packet_ip()
+		#var serverport = listener.get_packet_port()
+		#var bytes = listener.get_packet()
+		#var data = bytes.get_string_from_ascii()
+		#var roomInfo = JSON.parse_string(data)
+		#print("Server Ip: " + serverip + " | Server Port: " + str(serverport))
+		#
+		#if serverip != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
+			#connection_server(serverip)
 		
 		
 
 func _ready():
 	broadcastTimer = $BroadcastTimer
+	listeningPort()
 	room_info.ip_address = _get_self_local_ip()
 	room_info.name = _get_name()
 	_connect_signals()
@@ -63,10 +65,10 @@ func listeningPort():
 	listener = PacketPeerUDP.new()
 	if listener.bind(listenPort) == OK:
 		print("Find port to " + str(listenPort))
-		bounding.text = "Bounding: True"
+		bounding.text = "Can join: True"
 	else:
 		print("Failed to find")
-		bounding.text = "Bounding: False"
+		bounding.text = "Can join: False"
 
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
@@ -86,9 +88,9 @@ func _on_broadcast_timer_timeout() -> void:
 	pass # Replace with function body.
 
 func cleanUp_UDP():
+	$BroadcastTimer.stop()
 	if listener != null:
 		listener.close()
-	$BroadcastTimer.stop()
 	if broadcaster != null:
 		broadcaster.close()
 
@@ -116,22 +118,26 @@ func host_game():
 	peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT, MAX_CONNECTIONS)
 	if error:
+		print("Create Server error" + str(error))
 		return error
 	multiplayer.multiplayer_peer = peer
 	_add_local_player(1)
 
 func join_game():
-	#var address = "192.168.1.215"
-	joining = true
-	listeningPort()
+	if running_local: # Si on est en test local
+		connection_server(_get_self_local_ip())
+	else:
+		listeningPort()
+		joining = true
 
-func connection_server(address):
+
+func connection_server(address : String):
+	joining = false
 	peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(address, PORT)
 	if error != OK:
 		print("Failed to connect to server.")
 		return
-	joining = false
 	multiplayer.multiplayer_peer = peer
 
 # --- Signal Handlers ---
@@ -183,10 +189,6 @@ func _get_self_local_ip() -> String:
 	return ""
 
 # --- Game Scene Management ---
-@rpc("call_local", "reliable")
-func load_game(game_scene_path):
-	get_tree().change_scene_to_file(game_scene_path)
-
 @rpc("any_peer", "reliable")
 func player_ready():
 	var player_id = multiplayer.get_unique_id()
@@ -207,11 +209,11 @@ func player_ready():
 			all_ready = false
 			break
 	if all_ready:
-		rpc("print_hello")
+		rpc("load_game", "res://scenes/interface.tscn")
 
-@rpc("any_peer")
-func print_hello():
-	print("Start Game")
+@rpc("any_peer", "call_local", "reliable")
+func load_game(game_scene_path):
+	get_tree().change_scene_to_file(game_scene_path)
 
 @rpc("any_peer", "reliable")
 func notify_player_ready(player_id, status):
@@ -243,12 +245,6 @@ func _update_labels() -> void:
 			str(players[player_id].is_ready)
 		]
 	player_2_label.text = player2_info
-
-func _launch_game_scene():
-	rpc("load_game", "res://scenes/interface.tscn")
-
-func _reset_players_loaded():
-	players_loaded = 0
 
 # --- Disconnecting ---
 func disconnect_from_server():
