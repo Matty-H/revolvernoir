@@ -11,7 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://b0ht1o1qfqy74" path="res://graphics/revolver-noir-jeu-9-1024x710.png" id="8_71igm"]
 [ext_resource type="Script" path="res://scripts/map.gd" id="9_fbqcs"]
 [ext_resource type="Script" path="res://scenes/action_buttons.gd" id="9_l2e0b"]
-[ext_resource type="Texture2D" uid="uid://yqegub2krnb2" path="res://graphics/icon.svg" id="10_nqhrk"]
+[ext_resource type="Texture2D" uid="uid://yqegub2krnb2" path="res://icon.svg" id="10_nqhrk"]
 [ext_resource type="PackedScene" uid="uid://dl3n65ke5al5g" path="res://scenes/overlay.tscn" id="11_rpv3s"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_gkf33"]

@@ -5,6 +5,8 @@ extends Node
 @onready var lobby: VBoxContainer = $"."
 @onready var start_menu: VBoxContainer = $"../Start_menu"
 
+var udp_server = PacketPeerUDP.new()
+
 # Signals
 signal player_connected(peer_id, player_info)
 signal player_disconnected(peer_id)
@@ -24,8 +26,19 @@ var player_info = {
 }
 var players_loaded = 0
 
+func _process(delta):
+	while udp_server.get_available_packet_count() > 0:
+		var packet = udp_server.get_packet().get_string_from_utf8()
+		var sender_ip = udp_server.get_packet_ip()
+		var sender_port = udp_server.get_packet_port()
+		print("Reçu depuis ", sender_ip, ":", sender_port, " -> ", packet)
+
+		if packet == "ping":
+			udp_server.set_send_address(sender_ip, sender_port)
+			udp_server.put_packet("pong".to_utf8_buffer())
+
 func _ready():
-	player_info.ip_address = _get_local_ip()
+	player_info.ip_address = _get_self_local_ip()
 	player_info.name = _get_name()
 	_connect_signals()
 	_reset_labels()
@@ -51,7 +64,9 @@ func _get_name() -> String:
 
 # --- Hosting and Joining Functions ---
 func host_game():
-	server_ip = _get_local_ip()
+	udp_server.listen(PORT)
+	print("Serveur en écoute sur le port ", PORT)
+	server_ip = _get_self_local_ip()
 	print("Hosted on ", server_ip)
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT, MAX_CONNECTIONS)
@@ -61,7 +76,8 @@ func host_game():
 	_add_local_player(1)
 
 func join_game():
-	var address = _get_local_ip()
+	var address = _find_local_server()
+	#var address = "192.168.1.11"
 	if address.is_empty():
 		print("No server found.")
 		return
@@ -112,13 +128,52 @@ func _update_ready_status(player_id, status):
 		players[player_id].is_ready = status
 		_update_labels()  # Mise à jour complète des labels
 
-func _get_local_ip() -> String:
+func _get_self_local_ip() -> String:
 	var interfaces = IP.get_local_interfaces()
 	for interface in interfaces:
 		for address in interface.addresses:
 			if address.begins_with("192.168.1."):
 				return address
 	return ""
+
+func _find_local_server() -> String:
+	var base_ip = "192.168.1."
+	var range_start = 10
+	var range_end = 12
+	var port = PORT
+
+	var udp_server = UDPServer.new()
+	udp_server.listen(port)
+
+	for i in range(range_start, range_end + 1):
+		var ip_to_test = base_ip + str(i)
+		print("Test de l'adresse IP : ", ip_to_test)
+
+		# Envoyer un message au serveur à tester
+		var udp_client = PacketPeerUDP.new()
+		udp_client.connect_to_host(ip_to_test, port)
+		udp_client.put_packet("ping".to_utf8_buffer())  # Envoyer un message de test
+
+		# Attendre une réponse du serveur
+		var timeout = 1.0  # Temps maximum pour attendre une réponse (en secondes)
+		var start_time = Time.get_ticks_usec() / 1000  # Utiliser `get_ticks_usec` pour une précision correcte
+		while Time.get_ticks_usec() / 1000 - start_time < timeout * 1000:
+			if udp_server.is_connection_available():
+				var peer = udp_server.take_connection()
+				if peer:
+					var response = peer.get_packet()
+					var response_str = response.get_string_from_utf8()
+					print("Réponse reçue depuis : ", ip_to_test, " - ", response_str)
+					if response_str == "pong":  # Vérifier si la réponse est valide
+						udp_server.close()
+						udp_client.close()
+						return ip_to_test
+
+		udp_client.close()
+
+	print("Aucun serveur trouvé dans la plage.")
+	return ""
+
 
 # --- Game Scene Management ---
 @rpc("call_local", "reliable")
