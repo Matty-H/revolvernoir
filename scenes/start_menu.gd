@@ -34,7 +34,7 @@ func _on_join_pressed():
 
 func _on_back_pressed() -> void:	
 	server.leave_lobby()
-	server.cleanUpUDP()
+	server.cleanUp_UDP()
 
 func _on_ready_pressed() -> void:
 	server.player_ready()

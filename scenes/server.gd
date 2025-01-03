@@ -11,8 +11,6 @@ extends Node
 signal player_connected(peer_id, room_info)
 signal player_disconnected(peer_id)
 signal server_disconnected
-signal found_server
-signal server_removed
 
 # Network Constants
 const PORT = 7000
@@ -23,6 +21,7 @@ var broadcastTimer : Timer
 var broadcaster : PacketPeerUDP
 var listener : PacketPeerUDP
 var peer = ENetMultiplayerPeer
+var joining : bool = false
 
 @export var listenPort : int = PORT
 @export var broadcastPort : int = listenPort+1
@@ -37,7 +36,9 @@ var room_info = {
 var players_loaded = 0
 
 func _process(delta):
-	if listener.get_available_packet_count() >  0:
+	if not joining:
+		return
+	if listener.get_available_packet_count() > 0:
 		var serverip = listener.get_packet_ip()
 		var serverport = listener.get_packet_port()
 		var bytes = listener.get_packet()
@@ -48,8 +49,14 @@ func _process(delta):
 		
 
 func _ready():
+	listeningPort()
 	broadcastTimer = $BroadcastTimer
+	room_info.ip_address = _get_self_local_ip()
+	room_info.name = _get_name()
+	_connect_signals()
+	_reset_labels()
 	
+func listeningPort():
 	listener = PacketPeerUDP.new()
 	if listener.bind(listenPort) == OK:
 		print("Find port to " + str(listenPort))
@@ -57,13 +64,6 @@ func _ready():
 	else:
 		print("Failed to find")
 		bounding.text = "Bounding: False"
-
-
-	
-	room_info.ip_address = _get_self_local_ip()
-	room_info.name = _get_name()
-	_connect_signals()
-	_reset_labels()
 
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
@@ -82,7 +82,7 @@ func _on_broadcast_timer_timeout() -> void:
 	broadcaster.put_packet(packet)
 	pass # Replace with function body.
 
-func cleanUpUDP():
+func cleanUp_UDP():
 	listener.close()
 	$BroadcastTimer.stop()
 	if broadcaster != null:
@@ -117,10 +117,10 @@ func host_game():
 	_add_local_player(1)
 
 func join_game():
-	var address = "192.168.1.215"
-	if address.is_empty():
-		print("No server found.")
-		return
+	joining = true
+	#var address = "192.168.1.215"
+	listeningPort()
+	var address = ""
 	peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(address, PORT)
 	if error != OK:
@@ -255,6 +255,8 @@ func _remove_multiplayer_peer():
 	multiplayer.multiplayer_peer = null
 
 func leave_lobby():
+	joining = false
+	cleanUp_UDP()
 	disconnect_from_server()
 	_reset_labels()
 	print("Left the lobby.")
