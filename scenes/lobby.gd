@@ -12,20 +12,42 @@ signal server_disconnected
 
 # Network Constants
 const PORT = 7000
-const VALIDATION_PORT = 7001
 const MAX_CONNECTIONS = 2
-const SERVER_IDENTIFIER = "GAME_SERVER_V1"
 
 # Variables
 var server_ip = "127.0.0.1"
 var players = {}  # Player info for every connected player
-var player_info = {"name": "Name"}  # Local player info
-var players_loaded = 0  # Nombre de joueurs chargés
+var player_info = {
+	"name": "",
+	"ip_address": "",
+	"is_ready": false
+}
+var players_loaded = 0
 
-# --- Lifecycle Functions ---
 func _ready():
+	player_info.ip_address = _get_local_ip()
+	player_info.name = _get_name()
 	_connect_signals()
 	_reset_labels()
+
+func _get_name() -> String:
+	# Essaye différentes méthodes pour obtenir le nom de la machine
+	if OS.has_environment("COMPUTERNAME"):  # Windows
+		return OS.get_environment("COMPUTERNAME")
+	elif OS.has_environment("HOSTNAME"):    # Linux/Mac
+		return OS.get_environment("HOSTNAME")
+	else:
+		# Fallback : utilise la commande système appropriée
+		var output = []
+		if OS.get_name() == "Windows":
+			OS.execute("hostname", [], output)
+		else:  # Linux/Mac
+			OS.execute("hostname", [], output)
+		
+		if output.size() > 0:
+			return output[0].strip_edges()
+		
+		return "Dummy"
 
 # --- Hosting and Joining Functions ---
 func host_game():
@@ -50,7 +72,6 @@ func join_game():
 		return
 	multiplayer.multiplayer_peer = peer
 
-
 # --- Signal Handlers ---
 func _on_player_connected(id):
 	_register_player.rpc_id(id, player_info)
@@ -72,6 +93,7 @@ func _on_connected_ok():
 
 func _on_connected_fail():
 	_remove_multiplayer_peer()
+	players.clear()
 
 # --- Utility Functions ---
 func _connect_signals():
@@ -84,16 +106,11 @@ func _add_local_player(peer_id):
 	players[peer_id] = player_info
 	player_connected.emit(peer_id, player_info)
 
-func _reset_labels() -> void:
-	player_1_label.text = "Host: Waiting..."
-	player_2_label.text = "Player 2: Waiting..."
-
-func _update_labels() -> void:
-	player_1_label.text = "Host: " + ("Hosting" if multiplayer.is_server() else "Connected" if players.has(1) else "Waiting...")
-
-	var other_player_ids = players.keys()
-	other_player_ids.erase(1)
-	player_2_label.text = "Player 2: " + (str(other_player_ids[0]) if other_player_ids else "Waiting...")
+func _update_ready_status(player_id, status):
+	# Met à jour seulement le statut ready dans les labels existants
+	if players.has(player_id):
+		players[player_id].is_ready = status
+		_update_labels()  # Mise à jour complète des labels
 
 func _get_local_ip() -> String:
 	var interfaces = IP.get_local_interfaces()
@@ -110,33 +127,60 @@ func load_game(game_scene_path):
 
 @rpc("any_peer", "reliable")
 func player_ready():
-	# Le joueur signale qu'il est prêt
 	var player_id = multiplayer.get_unique_id()
-	players[player_id].ready = true  # On marque ce joueur comme prêt
 
-	if multiplayer.is_server():
-		players_loaded += 1
-		if players_loaded == 2:
-			_launch_game_scene()
-			_reset_players_loaded()
+	# Toggle the ready status for the player
+	if players.has(player_id):
+		players[player_id].is_ready = not players[player_id].is_ready
 
-	# Envoyer un RPC pour notifier aux autres joueurs que ce joueur est prêt
-	rpc("notify_player_ready", player_id)
+		# Update labels locally for the player who changed their status
+		_update_labels()
+
+	# Notify all players of the change in status
+	rpc("notify_player_ready", player_id, players[player_id].is_ready)
+
+	var all_ready = true
+	for player in players.values():
+		if not player.is_ready:
+			all_ready = false
+			break
+	if all_ready:
+		print("Start Game")
+
 
 @rpc("any_peer", "reliable")
-func notify_player_ready(player_id):
-	_update_ready_status(player_id)
+func notify_player_ready(player_id, status):
+	_update_ready_status(player_id, status)
 
-func _update_ready_status(player_id):
-	# Mettez à jour l'interface de chaque joueur avec l'état prêt du joueur
-	if player_id == 1:
-		player_1_label.text = "Host: Ready"
-	else:
-		player_2_label.text = "Player 2: Ready"
+func _reset_labels() -> void:
+	player_1_label.text = "Host: Waiting..."
+	player_2_label.text = "Player 2: Waiting..."
+
+func _update_labels() -> void:
+	var host_info = "Host: " + ("Hosting" if multiplayer.is_server() else "Connected" if players.has(1) else "Waiting...")
+	if players.has(1):
+		host_info = "Host: %s | IP: %s | PC: %s | Ready: %s" % [
+			"Hosting" if multiplayer.is_server() else "Connected",
+			players[1].ip_address,
+			players[1].name,
+			str(players[1].is_ready)
+		]
+	player_1_label.text = host_info
+
+	var other_player_ids = players.keys()
+	other_player_ids.erase(1)
+	var player2_info = "Player 2: Waiting..."
+	if other_player_ids:
+		var player_id = other_player_ids[0]
+		player2_info = "Player 2: Connected | IP: %s | PC: %s | Ready: %s" % [
+			players[player_id].ip_address,
+			players[player_id].name,
+			str(players[player_id].is_ready)
+		]
+	player_2_label.text = player2_info
 
 func _launch_game_scene():
 	rpc("load_game", "res://scenes/interface.tscn")
-
 
 func _reset_players_loaded():
 	players_loaded = 0
@@ -146,6 +190,7 @@ func disconnect_from_server():
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		_remove_multiplayer_peer()
+		players.clear()
 		server_disconnected.emit()
 		start_menu.visible = true
 		lobby.visible = false

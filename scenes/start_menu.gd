@@ -3,7 +3,6 @@ extends Control
 @export var player_scene: PackedScene
 @onready var start_menu: VBoxContainer = $Start_menu
 @onready var lobby: VBoxContainer = $Lobby
-@onready var interface: Control = $level/Interface
 @onready var level: Control = $level
 @onready var multiplayer_spawner: MultiplayerSpawner = $MultiplayerSpawner
 @onready var host: Button = $Start_menu/HBoxContainer/Host

@@ -81,6 +81,7 @@ script = ExtResource("3_h56wk")
 [node name="Ready" type="Button" parent="Lobby"]
 layout_mode = 2
 size_flags_vertical = 3
+toggle_mode = true
 text = "Ready"
 
 [node name="Playerlist" type="Label" parent="Lobby"]
