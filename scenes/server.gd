@@ -8,28 +8,33 @@ extends Node
 @onready var lobby: VBoxContainer = %Lobby
 @onready var start_menu: VBoxContainer = %Start_menu
 @onready var bounding: Label = $Bounding
+@onready var room_info_label: Label = $room_info
+@onready var ip_label: Label = $ip
 
 # Signals
 signal player_connected(peer_id, room_info)
 signal player_disconnected(peer_id)
 signal server_disconnected
 
-# Network Constants
-const PORT : int = 6000
-const MAX_CONNECTIONS : int = 2
-const IP_RANGE : String = "192.168.1.255"
-
-# Variables
-var broadcastTimer : Timer
-var broadcaster : PacketPeerUDP
-var listener : PacketPeerUDP
+# Network Constants & Variables
 var peer : ENetMultiplayerPeer
-var joining : bool = false
+const PORT : int = 60000
 
-var listenPort : int = PORT
-var broadcastPort : int = listenPort+1
+var broadcaster : PacketPeerUDP
+var broadcastPort : int = PORT+600
 
-var server_ip = "127.0.0.1"
+var listener : PacketPeerUDP
+var listenPort : int = PORT+850
+
+var broadcastTimer : Timer
+const MAX_CONNECTIONS : int = 3
+const IP_RANGE : String = "192.168.1.255"
+var hosting_state : bool = false
+var joining_state : bool = false
+
+
+
+@onready var server_ip = _get_self_local_ip()
 var players = {}  # Player info for every connected player
 var room_info = {
 	"name": "",
@@ -37,38 +42,36 @@ var room_info = {
 	"is_ready": false
 }
 
-func _process(delta):
-	if not joining:
-		return
+#func _process(_delta):
+	#if listener == null:
+		#print(listener)
+	#if not joining:
+		#return
 	#if listener.get_available_packet_count() > 0:
 		#var serverip : String = listener.get_packet_ip()
-		#var serverport = listener.get_packet_port()
-		#var bytes = listener.get_packet()
-		#var data = bytes.get_string_from_ascii()
-		#var roomInfo = JSON.parse_string(data)
-		#print("Server Ip: " + serverip + " | Server Port: " + str(serverport))
-		#
+#
+		#print("Server Ip: " + serverip )
 		#if serverip != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
 			#connection_server(serverip)
-		
-		
+
 
 func _ready():
+	peer = ENetMultiplayerPeer.new()
 	broadcastTimer = $BroadcastTimer
-	listeningPort()
 	room_info.ip_address = _get_self_local_ip()
 	room_info.name = _get_name()
+	listeningPort()
 	_connect_signals()
 	_reset_labels()
+	_update_labels()
 	
 func listeningPort():
 	listener = PacketPeerUDP.new()
 	if listener.bind(listenPort) == OK:
-		print("Find port to " + str(listenPort))
-		bounding.text = "Can join: True"
+		bounding.text = "Listener port " + str(listenPort) + " connected"
 	else:
-		print("Failed to find")
-		bounding.text = "Can join: False"
+		bounding.text = "Listener port " + str(listenPort) + " already used"
+	$BroadcastTimer.start()
 
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
@@ -81,16 +84,31 @@ func setUpBroadcast():
 	$BroadcastTimer.start()
 
 func _on_broadcast_timer_timeout() -> void:
-	print("Currenlty opened server")
+	if hosting_state:
+		format_and_send_packet()
+	if joining_state:
+		looking_for_packet()
+
+func looking_for_packet():
+	if listener.get_available_packet_count() > 0:
+		print("GET PACKET")
+		var address = listener.get_packet_ip()
+		print(address)
+		var serverport = listener.get_packet_port()
+		print("server Ip: " + address +" serverPort: "+ str(serverport))
+
+		if address != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
+			connection_server(address)
+
+func format_and_send_packet():
+	print("Sending packets")
 	var data = JSON.stringify(room_info)
 	var packet = data.to_ascii_buffer()
 	broadcaster.put_packet(packet)
-	pass # Replace with function body.
-
-func cleanUp_UDP():
+	
+func cleanUp():
 	$BroadcastTimer.stop()
-	if listener != null:
-		listener.close()
+	listener.close()
 	if broadcaster != null:
 		broadcaster.close()
 
@@ -113,31 +131,36 @@ func _get_name() -> String:
 
 # --- Hosting and Joining Functions ---
 func host_game():
-	server_ip = _get_self_local_ip()
+	hosting_state = true
+	setUpBroadcast()
 	print("Hosted on ", server_ip +":"+ str(PORT))
-	peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT, MAX_CONNECTIONS)
 	if error:
-		print("Create Server error" + str(error))
+		print("Create Server error: " + str(error))
 		return error
 	multiplayer.multiplayer_peer = peer
 	_add_local_player(1)
 
 func join_game():
 	if running_local: # Si on est en test local
-		connection_server(_get_self_local_ip())
+		connection_server(server_ip)
 	else:
+		joining_state = true
 		listeningPort()
-		joining = true
 
 
 func connection_server(address : String):
-	joining = false
-	peer = ENetMultiplayerPeer.new()
+	joining_state = false
 	var error = peer.create_client(address, PORT)
-	if error != OK:
-		print("Failed to connect to server.")
-		return
+	match error:
+		OK:
+			pass
+		20:
+			print(ERR_ALREADY_EXISTS)
+			return
+		22:
+			print(ERR_ALREADY_IN_USE)
+			return
 	multiplayer.multiplayer_peer = peer
 
 # --- Signal Handlers ---
@@ -173,6 +196,7 @@ func _connect_signals():
 func _add_local_player(peer_id):
 	players[peer_id] = room_info
 	player_connected.emit(peer_id, room_info)
+	
 
 func _update_ready_status(player_id, status):
 	# Met à jour seulement le statut ready dans les labels existants
@@ -245,6 +269,9 @@ func _update_labels() -> void:
 			str(players[player_id].is_ready)
 		]
 	player_2_label.text = player2_info
+	
+	room_info_label.text = str(room_info)
+	ip_label.text = "IP: " + str(server_ip)
 
 # --- Disconnecting ---
 func disconnect_from_server():
@@ -260,8 +287,9 @@ func _remove_multiplayer_peer():
 	multiplayer.multiplayer_peer = null
 
 func leave_lobby():
-	joining = false
-	cleanUp_UDP()
+	hosting_state = false
+	joining_state = false
+	cleanUp()
 	disconnect_from_server()
 	_reset_labels()
 	print("Left the lobby.")

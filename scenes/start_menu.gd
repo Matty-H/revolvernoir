@@ -25,7 +25,6 @@ func _on_host_pressed() -> void:
 	start_menu.visible = false
 	lobby.visible = true
 	server.host_game()
-	server.setUpBroadcast()
  
 func _on_join_pressed():
 	start_menu.visible = false
@@ -34,7 +33,6 @@ func _on_join_pressed():
 
 func _on_back_pressed() -> void:	
 	server.leave_lobby()
-	server.cleanUp_UDP()
 
 func _on_ready_pressed() -> void:
 	server.player_ready()

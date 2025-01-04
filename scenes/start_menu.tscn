@@ -26,6 +26,25 @@ offset_right = 98.0
 offset_bottom = 954.0
 text = "Bounding: "
 
+[node name="room_info" type="Label" parent="Server"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 23.0
+grow_horizontal = 2
+text = "room_info"
+horizontal_alignment = 2
+autowrap_mode = 3
+
+[node name="ip" type="Label" parent="Server"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 33.0
+offset_bottom = 56.0
+grow_horizontal = 2
+text = "IP"
+horizontal_alignment = 2
+autowrap_mode = 3
+
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/interface.tscn")
 spawn_path = NodePath("../level")
