@@ -40,7 +40,9 @@ var room_info = {
 	"is_ready": false
 }
 
-#func _process(_delta):
+func _process(_delta):
+	if joining_state:
+		looking_for_packet()
 	#if listener == null:
 		#print(listener)
 	#if not joining:
@@ -69,7 +71,7 @@ func listeningPort():
 		bounding.text = "Listener port " + str(listenPort) + " connected"
 	else:
 		bounding.text = "Listener port " + str(listenPort) + " already used"
-	$BroadcastTimer.start()
+	#$BroadcastTimer.start()
 
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
@@ -84,11 +86,10 @@ func setUpBroadcast():
 func _on_broadcast_timer_timeout() -> void:
 	if hosting_state:
 		format_and_send_packet()
-	if joining_state:
-		looking_for_packet()
 
 func looking_for_packet():
 	if listener.get_available_packet_count() > 0:
+		print("GET PACKET")
 		var Ip_sender = listener.get_packet_ip()
 		var serverport = listener.get_packet_port()
 		var bytes = listener.get_packet()
@@ -102,7 +103,6 @@ func looking_for_packet():
 
 func format_and_send_packet():
 	print("Sending packets")
-	print(room_info)
 	var data = JSON.stringify(room_info)
 	var packet = data.to_ascii_buffer()
 	broadcaster.put_packet(packet)
@@ -144,8 +144,8 @@ func host_game():
 
 func join_game():
 	joining_state = true
-	connection_server(server_ip)
 	listeningPort()
+	#connection_server(server_ip)
 
 
 func connection_server(address : String):
