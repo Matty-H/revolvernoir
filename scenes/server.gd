@@ -1,7 +1,5 @@
 extends Node
 
-@export var running_local : bool = true
-
 @onready var server: Node = $"."
 @onready var player_1_label: Label = %Player1
 @onready var player_2_label: Label = %Player2
@@ -91,10 +89,12 @@ func _on_broadcast_timer_timeout() -> void:
 
 func looking_for_packet():
 	if listener.get_available_packet_count() > 0:
-		print("GET PACKET")
-		var address = listener.get_packet_ip()
-		print(address)
+		var Ip_sender = listener.get_packet_ip()
 		var serverport = listener.get_packet_port()
+		var bytes = listener.get_packet()
+		var data = bytes.get_string_from_ascii()
+		var roomInfo = JSON.parse_string(data)
+		var address = roomInfo.ip_address
 		print("server Ip: " + address +" serverPort: "+ str(serverport))
 
 		if address != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
@@ -102,6 +102,7 @@ func looking_for_packet():
 
 func format_and_send_packet():
 	print("Sending packets")
+	print(room_info)
 	var data = JSON.stringify(room_info)
 	var packet = data.to_ascii_buffer()
 	broadcaster.put_packet(packet)
@@ -142,11 +143,9 @@ func host_game():
 	_add_local_player(1)
 
 func join_game():
-	if running_local: # Si on est en test local
-		connection_server(server_ip)
-	else:
-		joining_state = true
-		listeningPort()
+	joining_state = true
+	connection_server(server_ip)
+	listeningPort()
 
 
 func connection_server(address : String):

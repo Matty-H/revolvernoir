@@ -27,11 +27,11 @@ func _ready() -> void:
 
 	match random_first_player:
 		0:
-			print("Human start")
+			online_printer("Human start")
 			player_actif = player
 			player_non_actif = opponent
 		1:
-			print("Computer start")
+			online_printer("Computer start")
 			player_actif = opponent
 			player_non_actif = player
 
@@ -55,12 +55,12 @@ func UI_visbible():
 
 
 func begin_turn():
-	print("=== P1 PICK A ROOM ===")
+	online_printer("=== P1 PICK A ROOM ===")
 	player.set_position_player()
 	await overlay.get_node("opacifier").pop_up("Choisissez une salle", 1)
 	await player.room_selected
 	
-	print("=== P2 PICK A ROOM ===")
+	online_printer("=== P2 PICK A ROOM ===")
 	opponent.set_position_player()
 	await overlay.get_node("opacifier").pop_up("L'adversaire choisi une salle", 1)
 	#await opponent.room_selected
@@ -71,7 +71,7 @@ func begin_turn():
 		current_phase = game_phase.opponent_TURN
 		opponent_turn.emit()
 	action_buttons.start_kitchen = true
-	print("=== PLAYER 1 TURN ===")
+	online_printer("=== PLAYER 1 TURN ===")
 
 func point_paywall(pts):
 	action_buttons.start_kitchen = false
@@ -81,21 +81,21 @@ func point_paywall(pts):
 		switch_turn()
 
 func basement_flood_check():
-	print("Flood: "+str(map.basement_flood))
+	online_printer("Flood: "+str(map.basement_flood))
 	if map.basement_flood > 0:
 		map.basement_flood -= 1
 		if hit_verification("basement"):
-			print("blop blop")
+			online_printer("blop blop")
 			basement_relocalisation()
 			return
 		else:
-			print("pas procédure relocalisation")
+			online_printer("pas procédure relocalisation")
 		
 
 func switch_turn() -> void:
 	basement_flood_check()
 	if current_phase == game_phase.player_TURN:
-		print("=== PLAYER 2 TURN ===")
+		online_printer("=== PLAYER 2 TURN ===")
 		await overlay.get_node("opacifier").pop_up("Changement de tour", 0.5)
 
 		current_phase = game_phase.opponent_TURN
@@ -104,7 +104,7 @@ func switch_turn() -> void:
 		opponent_turn.emit()
 		
 	elif current_phase == game_phase.opponent_TURN:
-		print("=== PLAYER 1 TURN ===")
+		online_printer("=== PLAYER 1 TURN ===")
 		await overlay.get_node("opacifier").pop_up("Changement de tour", 0.5)
 		
 		current_phase = game_phase.player_TURN
@@ -126,7 +126,7 @@ func basement_relocalisation():
 			pass
 		opponent:
 			player_actif.position_player = rooms_list[randi() % rooms_list.size()]
-			print("P2 fled into "+str(player_actif.position_player))
+			online_printer("P2 fled into "+str(player_actif.position_player))
 			player_actif.room_selected.emit()
 
 func hit_verification(x):
@@ -137,14 +137,18 @@ func hit_verification(x):
 func dealing_hit(x):
 	if x == player_non_actif.position_player:
 		player_non_actif.life -= 1
-		print("HIT")
+		online_printer("HIT")
 		return true
 	else:
 		return false
 
 func win_condition():
 	if player_non_actif.life <= 0:
-		print(str(player_actif.get_name())+" won!")
+		online_printer(str(player_actif.get_name())+" won!")
 		current_phase == game_phase.GAME_OVER
 		#get_tree().root.winner_score.winner = player_actif
-		#get_tree().change_scene_to_file("res://scenes/game_over.tscn")
+		get_tree().change_scene_to_file("res://scenes/game_over.tscn")
+
+@rpc("any_peer","reliable")
+func online_printer(printing_paper):
+	print(printing_paper)
