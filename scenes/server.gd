@@ -5,9 +5,8 @@ extends Node
 @onready var player_2_label: Label = %Player2
 @onready var lobby: VBoxContainer = %Lobby
 @onready var start_menu: VBoxContainer = %Start_menu
-@onready var bounding: Label = $Bounding
-@onready var room_info_label: Label = $room_info
-@onready var ip_label: Label = $ip
+@onready var bounding: Label = $VBoxContainer/HBoxContainer/Bounding
+@onready var ip_label: Label = $VBoxContainer/HBoxContainer/ip
 
 # Signals
 signal player_connected(peer_id, room_info)
@@ -25,7 +24,7 @@ var listener : PacketPeerUDP
 var listenPort : int = PORT+850
 
 var broadcastTimer : Timer
-const MAX_CONNECTIONS : int = 3
+const MAX_CONNECTIONS : int = 1
 const IP_RANGE : String = "192.168.1.255"
 var hosting_state : bool = false
 var joining_state : bool = false
@@ -40,9 +39,8 @@ var room_info = {
 	"is_ready": false
 }
 
-func _process(_delta):
-	if joining_state:
-		looking_for_packet()
+#func _process(_delta):
+	
 	#if listener == null:
 		#print(listener)
 	#if not joining:
@@ -71,7 +69,7 @@ func listeningPort():
 		bounding.text = "Listener port " + str(listenPort) + " connected"
 	else:
 		bounding.text = "Listener port " + str(listenPort) + " already used"
-	#$BroadcastTimer.start()
+	$BroadcastTimer.start()
 
 func setUpBroadcast():
 	broadcaster = PacketPeerUDP.new()
@@ -86,6 +84,8 @@ func setUpBroadcast():
 func _on_broadcast_timer_timeout() -> void:
 	if hosting_state:
 		format_and_send_packet()
+	if joining_state:
+		looking_for_packet()
 
 func looking_for_packet():
 	if listener.get_available_packet_count() > 0:
@@ -269,7 +269,6 @@ func _update_labels() -> void:
 		]
 	player_2_label.text = player2_info
 	
-	room_info_label.text = str(room_info)
 	ip_label.text = "IP: " + str(server_ip)
 
 # --- Disconnecting ---

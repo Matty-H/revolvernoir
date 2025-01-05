@@ -5,6 +5,7 @@ extends Control
 @onready var map: Control = $Map_texture/Map
 @onready var action_buttons: VBoxContainer = $UI/Action_Buttons
 @onready var overlay: Control = $Overlay
+@onready var console_log: RichTextLabel = $UI/Labels/consoleLog
 
 signal player_turn
 signal opponent_turn
@@ -20,21 +21,7 @@ enum action_stats {FREE,AIMING,TRAP,RUNNING}
 var action_stats_now = action_stats.FREE
 
 func _ready() -> void:
-	current_phase = game_phase.INITIALISATION
-	action_buttons.visible = false
-	var random_first_player = randi_range(0,1)
-	#var random_first_player = 0
-
-	match random_first_player:
-		0:
-			online_printer("Human start")
-			player_actif = player
-			player_non_actif = opponent
-		1:
-			online_printer("Computer start")
-			player_actif = opponent
-			player_non_actif = player
-
+	choosing_first_player()
 	await begin_turn()
  
 func _process(delta: float) -> void:
@@ -50,19 +37,35 @@ func _process(delta: float) -> void:
 			pass
 
 
+func choosing_first_player():
+	current_phase = game_phase.INITIALISATION
+	action_buttons.visible = false
+	var random_first_player = randi_range(0,1)
+	#var random_first_player = 0
+
+	match random_first_player:
+		0:
+			online_printer.rpc("Human start")
+			player_actif = player
+			player_non_actif = opponent
+		1:
+			online_printer.rpc("Computer start")
+			player_actif = opponent
+			player_non_actif = player
+
 func UI_visbible():
 	action_buttons.visible = true
 
 
 func begin_turn():
-	online_printer("=== P1 PICK A ROOM ===")
+	online_printer.rpc("=== P1 PICK A ROOM ===")
 	player.set_position_player()
-	await overlay.get_node("opacifier").pop_up("Choisissez une salle", 1)
+	await pop_up("Choisissez une salle", 1)
 	await player.room_selected
 	
-	online_printer("=== P2 PICK A ROOM ===")
+	online_printer.rpc("=== P2 PICK A ROOM ===")
 	opponent.set_position_player()
-	await overlay.get_node("opacifier").pop_up("L'adversaire choisi une salle", 1)
+	await pop_up("L'adversaire choisi une salle", 1)
 	#await opponent.room_selected
 	
 	if player_actif == player:
@@ -71,7 +74,7 @@ func begin_turn():
 		current_phase = game_phase.opponent_TURN
 		opponent_turn.emit()
 	action_buttons.start_kitchen = true
-	online_printer("=== PLAYER 1 TURN ===")
+	online_printer.rpc("=== PLAYER 1 TURN ===")
 
 func point_paywall(pts):
 	action_buttons.start_kitchen = false
@@ -81,22 +84,22 @@ func point_paywall(pts):
 		switch_turn()
 
 func basement_flood_check():
-	online_printer("Flood: "+str(map.basement_flood))
+	online_printer.rpc("Flood: "+str(map.basement_flood))
 	if map.basement_flood > 0:
 		map.basement_flood -= 1
 		if hit_verification("basement"):
-			online_printer("blop blop")
+			online_printer.rpc("blop blop")
 			basement_relocalisation()
 			return
 		else:
-			online_printer("pas procédure relocalisation")
+			online_printer.rpc("pas procédure relocalisation")
 		
 
 func switch_turn() -> void:
 	basement_flood_check()
 	if current_phase == game_phase.player_TURN:
-		online_printer("=== PLAYER 2 TURN ===")
-		await overlay.get_node("opacifier").pop_up("Changement de tour", 0.5)
+		online_printer.rpc("=== PLAYER 2 TURN ===")
+		await pop_up("Changement de tour", 0.5)
 
 		current_phase = game_phase.opponent_TURN
 		player_actif = opponent
@@ -104,8 +107,8 @@ func switch_turn() -> void:
 		opponent_turn.emit()
 		
 	elif current_phase == game_phase.opponent_TURN:
-		online_printer("=== PLAYER 1 TURN ===")
-		await overlay.get_node("opacifier").pop_up("Changement de tour", 0.5)
+		online_printer.rpc("=== PLAYER 1 TURN ===")
+		await pop_up("Changement de tour", 0.5)
 		
 		current_phase = game_phase.player_TURN
 		player_actif = player
@@ -126,7 +129,7 @@ func basement_relocalisation():
 			pass
 		opponent:
 			player_actif.position_player = rooms_list[randi() % rooms_list.size()]
-			online_printer("P2 fled into "+str(player_actif.position_player))
+			online_printer.rpc("P2 fled into "+str(player_actif.position_player))
 			player_actif.room_selected.emit()
 
 func hit_verification(x):
@@ -137,18 +140,24 @@ func hit_verification(x):
 func dealing_hit(x):
 	if x == player_non_actif.position_player:
 		player_non_actif.life -= 1
-		online_printer("HIT")
+		online_printer.rpc("HIT")
 		return true
 	else:
 		return false
 
 func win_condition():
 	if player_non_actif.life <= 0:
-		online_printer(str(player_actif.get_name())+" won!")
+		online_printer.rpc(str(player_actif.get_name())+" won!")
 		current_phase == game_phase.GAME_OVER
 		#get_tree().root.winner_score.winner = player_actif
 		get_tree().change_scene_to_file("res://scenes/game_over.tscn")
 
-@rpc("any_peer","reliable")
+var print_line : int = 0
+@rpc("any_peer", "call_local", "reliable")
 func online_printer(printing_paper):
 	print(printing_paper)
+	print_line += 1
+	console_log.text += str(print_line) + "/ " + printing_paper + "\n"
+
+func pop_up(message : String, timer : int):
+	overlay.get_node("opacifier").pop_up(message, timer)
