@@ -6,16 +6,21 @@ extends Control
 @onready var action_buttons: VBoxContainer = $UI/Action_Buttons
 @onready var overlay: Control = $Overlay
 @onready var console_log: RichTextLabel = $UI/Labels/consoleLog
+@onready var server: Node = $"../../Server"
 
 signal player_turn
 signal opponent_turn
 signal winner(winner)
+signal random_value_propagated
+signal players_setup_completed
 
 enum game_phase {INITIALISATION, player_TURN, opponent_TURN, GAME_OVER}
 var current_phase: game_phase = game_phase.INITIALISATION
 
 var player_actif
 var player_non_actif
+
+var ok : bool = false
 
 enum action_stats {FREE,AIMING,TRAP,RUNNING}
 var action_stats_now = action_stats.FREE
@@ -36,26 +41,73 @@ func _process(delta: float) -> void:
 			get_tree().change_scene_to_file("res://scenes/game_over.tscn")
 			pass
 
+#@rpc("any_peer", "call_local", "reliable")
+func sync_random_value():
+	var random_value = randi_range(0, 1)
+	propagate_random_value.rpc(random_value)
+
+@rpc("any_peer", "call_local", "reliable")
+func propagate_random_value(value: int) -> void:
+	choosing_first_player_with_value(value)
+	ok = true  # Met à jour la variable uniquement après réception
+	random_value_propagated.emit()
 
 func choosing_first_player():
 	current_phase = game_phase.INITIALISATION
 	action_buttons.visible = false
-	var random_first_player = randi_range(0,1)
-	#var random_first_player = 0
+	var is_opponent_computer = server.is_opponent_computer
+	if is_opponent_computer == false:
+	
+		if server.room_info.id_machine == 1:
+			sync_random_value()
+			await random_value_propagated
+		else:
+			await random_value_propagated
+	else:
+		ok = true
+		sync_random_value()
+	# Attendre que les joueurs soient configurés pour tous les clients
+	await players_setup_completed
 
-	match random_first_player:
-		0:
-			online_printer.rpc("Human start")
-			player_actif = player
-			player_non_actif = opponent
-		1:
-			online_printer.rpc("Computer start")
-			player_actif = opponent
-			player_non_actif = player
+func choosing_first_player_with_value(random_first_player: int):
+	var is_opponent_computer = server.is_opponent_computer
+	var my_machine_id = server.room_info.id_machine
+	print("=======> ID: " + str(my_machine_id) + " RAND_SEED: " + str(random_first_player))
+	
+	if is_opponent_computer:
+		match random_first_player:
+			0:
+				online_printer.rpc("Human start")
+				player_actif = player
+				player_non_actif = opponent
+			1:
+				online_printer.rpc("Computer start")
+				player_actif = opponent
+				player_non_actif = player
+	else:
+		match random_first_player:
+			0:
+				online_printer.rpc("Player 1 starts (" + str(my_machine_id) + ")")
+				if my_machine_id == 1:
+					player_actif = player
+					player_non_actif = opponent
+				else:
+					player_actif = opponent
+					player_non_actif = player
+			1:
+				online_printer.rpc("Player 2 starts (" + str(my_machine_id) + ")")
+				if my_machine_id == 2:
+					player_actif = player
+					player_non_actif = opponent
+				else:
+					player_actif = opponent
+					player_non_actif = player
+	
+	# On émet le signal après avoir configuré les joueurs
+	players_setup_completed.emit()
 
 func UI_visbible():
 	action_buttons.visible = true
-
 
 func begin_turn():
 	online_printer.rpc("=== P1 PICK A ROOM ===")
@@ -149,13 +201,11 @@ func win_condition():
 	if player_non_actif.life <= 0:
 		online_printer.rpc(str(player_actif.get_name())+" won!")
 		current_phase == game_phase.GAME_OVER
-		#get_tree().root.winner_score.winner = player_actif
-		get_tree().change_scene_to_file("res://scenes/game_over.tscn")
 
 var print_line : int = 0
 @rpc("any_peer", "call_local", "reliable")
 func online_printer(printing_paper):
-	print(printing_paper)
+	print(str("(" + str(server.room_info.id_machine)) + ") " + printing_paper)
 	print_line += 1
 	console_log.text += str(print_line) + "/ " + printing_paper + "\n"
 

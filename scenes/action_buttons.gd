@@ -56,25 +56,25 @@ func _on_skill_button_pressed() -> void:
 	player_room = interface.player.position_player
 	match player_room:
 		"balcony":
-			balcony_skill()
+			balcony_skill.rpc()
 		"basement":
-			basement_skill()
+			basement_skill.rpc()
 		"library":
-			library_skill()
+			library_skill.rpc()
 		"bedroom":
-			bedroom_skill()
+			bedroom_skill.rpc()
 		"hall":
-			hall_skill()
+			hall_skill.rpc()
 		"kitchen":
-			kitchen_skill()
+			kitchen_skill.rpc()
 
-
+@rpc("any_peer", "call_local", "reliable")
 func balcony_skill():
 	print(str(interface.player_actif)+" jumped over balcony into the kitchen")
 	interface.player_actif.position_player = "kitchen"
 	interface.point_paywall(house_skill["balcony"][1])
 
-
+@rpc("any_peer", "call_local", "reliable")
 func basement_skill():
 	interface.action_stats_now = interface.action_stats.TRAP
 	for location in remote_trap_location:
@@ -86,6 +86,7 @@ func basement_skill():
 	interface.action_stats_now = interface.action_stats.FREE
 	interface.point_paywall(house_skill["basement"][1])
 
+@rpc("any_peer", "call_local", "reliable")
 func trap_countdown():
 	for room in remote_trap_location:
 		if remote_trap_location[room] > 0:
@@ -94,7 +95,7 @@ func trap_countdown():
 				print("BOMM in the "+str(room))
 				interface.hit_verification(room)
 
-
+@rpc("any_peer", "call_local", "reliable")
 func library_skill():
 	if interface.player_non_actif.position_player == "kitchen" :
 		print("Kitchen hatch opened and somebody fell.")
@@ -103,14 +104,14 @@ func library_skill():
 		print("Kitchen hatch opened.")
 	interface.point_paywall(house_skill["library"][1])
 
-
+@rpc("any_peer", "call_local", "reliable")
 func bedroom_skill():
 	map.basement_flood = 2
 	print("The basement is now flooded.")
 	interface.basement_flood_check()
 	interface.point_paywall(house_skill["bedroom"][1])
 
-
+@rpc("any_peer", "call_local", "reliable")
 func hall_skill():
 	var first_floor = ["balcony","corridor","library","bedroom"]
 	if first_floor.has(interface.player_non_actif.position_player):
@@ -119,7 +120,7 @@ func hall_skill():
 		print("Listening: "+ str(map.house[interface.player_non_actif.position_player].pick_random()))
 	interface.point_paywall(house_skill["hall"][1])
 
-
+@rpc("any_peer", "call_local", "reliable")
 func kitchen_skill():
 	start_kitchen = false
 	interface.player_actif.action_point_remaining = 3

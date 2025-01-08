@@ -54,15 +54,25 @@ replication_interval = 0.5
 delta_interval = 0.5
 replication_config = SubResource("SceneReplicationConfig_gkf33")
 
-[node name="Player" parent="." instance=ExtResource("2_0o0f1")]
-
-[node name="PlayerPeer" parent="." instance=ExtResource("2_0o0f1")]
-
 [node name="Opponent" type="Control" parent="."]
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("3_fkv74")
+
+[node name="Player" parent="." instance=ExtResource("2_0o0f1")]
+
+[node name="PlayerPeer" parent="." instance=ExtResource("2_0o0f1")]
+
+[node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
+layout_mode = 1
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_right = 540.0
+offset_bottom = 960.0
+grow_horizontal = 1
+grow_vertical = 1
 
 [node name="Map_texture" type="TextureRect" parent="."]
 layout_mode = 2
@@ -317,16 +327,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Shot"
 script = ExtResource("7_qcyx1")
-
-[node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
-layout_mode = 1
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
-offset_right = 540.0
-offset_bottom = 960.0
-grow_horizontal = 1
-grow_vertical = 1
 
 [connection signal="pressed" from="UI/Action_Buttons/Room_skill/skill_button" to="UI/Action_Buttons" method="_on_skill_button_pressed"]
 [connection signal="pressed" from="UI/Action_Buttons/Traps_Listen/Traps/Trap_1" to="UI/Action_Buttons/Traps_Listen/Traps" method="_on_trap_1_pressed"]

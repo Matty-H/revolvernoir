@@ -54,9 +54,10 @@ func _ready() -> void:
 			mouse_left_room(child.name))
 
 func _process(_delta) -> void:
-	if interface.player_actif.position_player:
-		adjacent_locations = house[interface.player_actif.position_player]
-	update_button_icon()
+	if interface.ok == true:
+		if interface.player_actif.position_player:
+			adjacent_locations = house[interface.player_actif.position_player]
+		update_button_icon()
 
 
 var room_status = {
@@ -112,7 +113,7 @@ func change_player_position(x):
 	interface.player_actif.position_player = x
 	room_status[old_position]  = "null"
 
-
+@rpc("any_peer", "call_local", "reliable")
 func clicked_on_room(room):
 	button_selected.emit(room)
 	var button = room_status[room]

@@ -15,6 +15,7 @@ script = ExtResource("1_vt67u")
 player_scene = ExtResource("2_gc6ul")
 
 [node name="Server" type="Node" parent="."]
+unique_name_in_owner = true
 script = ExtResource("3_uw48u")
 
 [node name="BroadcastTimer" type="Timer" parent="Server"]
@@ -26,6 +27,7 @@ offset_bottom = 81.0
 grow_horizontal = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Server/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="Bounding" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
@@ -37,6 +39,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="ip" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "IP"
+horizontal_alignment = 2
+
+[node name="VSeparator2" type="VSeparator" parent="Server/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ID" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 text = "IP"
 horizontal_alignment = 2

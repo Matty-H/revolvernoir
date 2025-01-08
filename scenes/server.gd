@@ -3,15 +3,20 @@ extends Node
 @onready var server: Node = $"."
 @onready var player_1_label: Label = %Player1
 @onready var player_2_label: Label = %Player2
+@onready var level: Control = $"../level"
 @onready var lobby: VBoxContainer = %Lobby
 @onready var start_menu: VBoxContainer = %Start_menu
 @onready var bounding: Label = $VBoxContainer/HBoxContainer/Bounding
 @onready var ip_label: Label = $VBoxContainer/HBoxContainer/ip
+@onready var id_label: Label = $VBoxContainer/HBoxContainer/ID
 
 # Signals
 signal player_connected(peer_id, room_info)
 signal player_disconnected(peer_id)
 signal server_disconnected
+
+#PlayMode
+var is_opponent_computer : bool = true
 
 # Network Constants & Variables
 var peer : ENetMultiplayerPeer
@@ -29,28 +34,14 @@ const IP_RANGE : String = "192.168.1.255"
 var hosting_state : bool = false
 var joining_state : bool = false
 
-
-
 @onready var server_ip = _get_self_local_ip()
 var players = {}  # Player info for every connected player
 var room_info = {
 	"name": "",
+	"id_machine":"",
 	"ip_address": "",
 	"is_ready": false
 }
-
-#func _process(_delta):
-	
-	#if listener == null:
-		#print(listener)
-	#if not joining:
-		#return
-	#if listener.get_available_packet_count() > 0:
-		#var serverip : String = listener.get_packet_ip()
-#
-		#print("Server Ip: " + serverip )
-		#if serverip != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
-			#connection_server(serverip)
 
 
 func _ready():
@@ -164,6 +155,7 @@ func connection_server(address : String):
 
 # --- Signal Handlers ---
 func _on_player_connected(id):
+	room_info.id_machine = id
 	_register_player.rpc_id(id, room_info)
 
 @rpc("any_peer", "reliable")
@@ -198,10 +190,9 @@ func _add_local_player(peer_id):
 	
 
 func _update_ready_status(player_id, status):
-	# Met à jour seulement le statut ready dans les labels existants
 	if players.has(player_id):
 		players[player_id].is_ready = status
-		_update_labels()  # Mise à jour complète des labels
+		_update_labels()
 
 func _get_self_local_ip() -> String:
 	var interfaces = IP.get_local_interfaces()
@@ -232,11 +223,21 @@ func player_ready():
 			all_ready = false
 			break
 	if all_ready:
+		stop_broadcast_timer()
+		is_opponent_computer = false
+		rpc("sync_opponent_type", is_opponent_computer)
 		rpc("load_game", "res://scenes/interface.tscn")
 
 @rpc("any_peer", "call_local", "reliable")
+func sync_opponent_type(is_computer: bool) -> void:
+	is_opponent_computer = is_computer
+
+@rpc("any_peer", "call_local", "reliable")
 func load_game(game_scene_path):
-	get_tree().change_scene_to_file(game_scene_path)
+	lobby.visible = false
+	var interface_scene: PackedScene = load(game_scene_path)
+	var interface_instance: Node = interface_scene.instantiate()
+	level.add_child(interface_instance)
 
 @rpc("any_peer", "reliable")
 func notify_player_ready(player_id, status):
@@ -270,6 +271,7 @@ func _update_labels() -> void:
 	player_2_label.text = player2_info
 	
 	ip_label.text = "IP: " + str(server_ip)
+	id_label.text = "ID: " + str(room_info.id_machine)
 
 # --- Disconnecting ---
 func disconnect_from_server():
@@ -284,9 +286,12 @@ func disconnect_from_server():
 func _remove_multiplayer_peer():
 	multiplayer.multiplayer_peer = null
 
-func leave_lobby():
+func stop_broadcast_timer():
 	hosting_state = false
 	joining_state = false
+
+func leave_lobby():
+	stop_broadcast_timer()
 	cleanUp()
 	disconnect_from_server()
 	_reset_labels()

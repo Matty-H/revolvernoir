@@ -9,10 +9,15 @@ extends Control
 @onready var join: Button = $Start_menu/HBoxContainer/Join
 @onready var server: Node = $Server
 
+
 func _on_play_pressed() -> void:
 	lobby.visible = false
 	start_menu.visible = false
-	get_tree().change_scene_to_file("res://scenes/interface.tscn")
+	#get_tree().change_scene_to_file("res://scenes/interface.tscn")
+	var interface_scene: PackedScene = load("res://scenes/interface.tscn")
+	var interface_instance: Node = interface_scene.instantiate()
+	level.add_child(interface_instance)
+	await get_tree().process_frame
 
 func _on_settings_pressed() -> void:
 	print("Not yet implemented")

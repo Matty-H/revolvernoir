@@ -5,8 +5,9 @@ extends Button
 
 
 func _on_pressed() -> void:
-	listening()
+	listening.rpc()
 
+@rpc("any_peer", "call_local", "reliable")
 func listening():
 	if interface.player_actif.action_point_remaining >= 1:
 		print("Listening: "+ str(map.house[interface.player_non_actif.position_player].pick_random()))

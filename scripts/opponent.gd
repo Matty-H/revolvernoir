@@ -5,8 +5,11 @@ extends Control
 @onready var listen: Button = $"../UI/Action_Buttons/Traps_Listen/Listen"
 @onready var shot: Button = $"../UI/Action_Buttons/Shot"
 @onready var map: Control = $"../Map_texture/Map"
+@onready var server: Node = $"../../../Server"
 
 signal room_selected()
+
+var is_computer = false
 
 var position_player
 var life = 2
@@ -15,7 +18,12 @@ var trap_1 = null
 var trap_2 = null
 
 func _ready():
-	interface.opponent_turn.connect(random_turn)
+	var opponent_type = server.is_opponent_computer
+	if opponent_type:
+		print("COMPUTER")
+		interface.opponent_turn.connect(random_turn)
+	else:
+		print(str("(" + str(server.room_info.id_machine)) + ") " + "HUMAN")
 
 func random_turn():
 	while action_point_remaining > 0:
