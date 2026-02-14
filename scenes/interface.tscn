@@ -1,6 +1,7 @@
 [gd_scene load_steps=15 format=3 uid="uid://cqnumqo55jik7"]
 
 [ext_resource type="Script" path="res://scenes/interface.gd" id="1_x0kiy"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_gm_script"]
 [ext_resource type="PackedScene" uid="uid://d1j2gpd63dy0y" path="res://scenes/player.tscn" id="2_0o0f1"]
 [ext_resource type="Script" path="res://scripts/opponent.gd" id="3_fkv74"]
 [ext_resource type="Script" path="res://scripts/labels.gd" id="4_mxvqg"]
@@ -15,28 +16,28 @@
 [ext_resource type="PackedScene" uid="uid://dl3n65ke5al5g" path="res://scenes/overlay.tscn" id="11_rpv3s"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_gkf33"]
-properties/0/path = NodePath("Map_texture/Map/kitchen:button_pressed")
+properties/0/path = NodePath("Player1:position_player")
 properties/0/spawn = true
 properties/0/replication_mode = 1
-properties/1/path = NodePath("Map_texture/Map/dining_room:button_pressed")
+properties/1/path = NodePath("Player1:life")
 properties/1/spawn = true
 properties/1/replication_mode = 1
-properties/2/path = NodePath("Map_texture/Map/hall:button_pressed")
+properties/2/path = NodePath("Player1:action_point_remaining")
 properties/2/spawn = true
 properties/2/replication_mode = 1
-properties/3/path = NodePath("Map_texture/Map/balcony:button_pressed")
+properties/3/path = NodePath("Player2:position_player")
 properties/3/spawn = true
 properties/3/replication_mode = 1
-properties/4/path = NodePath("Map_texture/Map/basement:button_pressed")
+properties/4/path = NodePath("Player2:life")
 properties/4/spawn = true
 properties/4/replication_mode = 1
-properties/5/path = NodePath("Map_texture/Map/corridor:button_pressed")
+properties/5/path = NodePath("Player2:action_point_remaining")
 properties/5/spawn = true
 properties/5/replication_mode = 1
-properties/6/path = NodePath("Map_texture/Map/bedroom:button_pressed")
+properties/6/path = NodePath("GameManager:current_phase")
 properties/6/spawn = true
 properties/6/replication_mode = 1
-properties/7/path = NodePath("Map_texture/Map/library:button_pressed")
+properties/7/path = NodePath("Map_texture/Map:basement_flood")
 properties/7/spawn = true
 properties/7/replication_mode = 1
 
@@ -49,20 +50,20 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_x0kiy")
 
+[node name="GameManager" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("1_gm_script")
+
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.5
 delta_interval = 0.5
 replication_config = SubResource("SceneReplicationConfig_gkf33")
 
-[node name="Opponent" type="Control" parent="."]
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("3_fkv74")
+[node name="Player1" parent="." instance=ExtResource("2_0o0f1")]
+player_id = 1
 
-[node name="Player" parent="." instance=ExtResource("2_0o0f1")]
-
-[node name="PlayerPeer" parent="." instance=ExtResource("2_0o0f1")]
+[node name="Player2" parent="." instance=ExtResource("2_0o0f1")]
+player_id = 2
 
 [node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
 layout_mode = 1

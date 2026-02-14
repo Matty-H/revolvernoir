@@ -9,17 +9,25 @@ extends VBoxContainer
 @onready var trap_1: Button = $"../HBoxContainer/Traps/Trap_1"
 @onready var trap_2: Button = $"../HBoxContainer/Traps/Trap_2"
 
-@onready var player: Control = $"../../Player"
-@onready var opponent: Control = $"../../Opponent"
-
 @onready var interface: Control = $"../.."
 @onready var map: Control = $"../Map_texture/Map"
 
 
 func _process(delta: float) -> void:		
-		p_1.text = "P1_ID#"+str(player.player_id)+" "+str(player.position_player)+" / LP: "+str(player.life)+" / AP: "+str(player.action_point_remaining)
-		p_2.text = "P2: "+str(opponent.position_player)+" / LP: "+str(opponent.life)+" / AP: "+str(opponent.action_point_remaining)
+		var p1 = interface.player1
+		var p2 = interface.player2
 
-		p_1_room.text = "Traps: "+str(player.trap_1)+" / "+str(player.trap_2)
-		p_2_room.text = "Traps: "+str(opponent.trap_1)+" / "+str(opponent.trap_2)
-		game_phase.text = str(interface.game_phase.keys()[interface.current_phase])
+		# Show full info only for self or if server (for debug)
+		var p1_pos = p1.position_player if (p1.is_local or multiplayer.is_server()) else "???"
+		var p2_pos = p2.position_player if (p2.is_local or multiplayer.is_server()) else "???"
+
+		p_1.text = "P1: %s / LP: %d / AP: %d" % [p1_pos, p1.life, p1.action_point_remaining]
+		p_2.text = "P2: %s / LP: %d / AP: %d" % [p2_pos, p2.life, p2.action_point_remaining]
+
+		p_1_room.text = "Traps: %s / %s" % [str(p1.trap_1), str(p1.trap_2)]
+		p_2_room.text = "Traps: %s / %s" % [str(p2.trap_1), str(p2.trap_2)]
+
+		var phase_name = "UNKNOWN"
+		if interface.game_manager:
+			phase_name = GameManager.GamePhase.keys()[interface.game_manager.current_phase]
+		game_phase.text = phase_name

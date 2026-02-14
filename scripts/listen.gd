@@ -5,12 +5,16 @@ extends Button
 
 
 func _on_pressed() -> void:
-	listening.rpc()
+	if interface.player_actif.is_local:
+		request_listening.rpc_id(1)
 
 @rpc("any_peer", "call_local", "reliable")
-func listening():
+func request_listening():
+	if not multiplayer.is_server(): return
+
 	if interface.player_actif.action_point_remaining >= 1:
-		print("Listening: "+ str(map.house[interface.player_non_actif.position_player].pick_random()))
+		var info = "Listening: " + str(map.house[interface.player_non_actif.position_player].pick_random())
+		interface.online_printer.rpc(info)
 		interface.point_paywall(1)
 	else:
-		print("No Action Points")
+		interface.online_printer.rpc_id(multiplayer.get_remote_sender_id(), "No Action Points")
