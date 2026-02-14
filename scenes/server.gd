@@ -14,6 +14,7 @@ extends Node
 signal player_connected(peer_id, room_info)
 signal player_disconnected(peer_id)
 signal server_disconnected
+signal server_found(server_info)
 
 #PlayMode
 var is_opponent_computer : bool = true
@@ -36,9 +37,10 @@ var joining_state : bool = false
 
 @onready var server_ip = _get_self_local_ip()
 var players = {}  # Player info for every connected player
+var discovered_servers = {} # IP -> room_info
 var room_info = {
 	"name": "",
-	"id_machine":"",
+	"id_machine": 0,
 	"ip_address": "",
 	"is_ready": false
 }
@@ -79,18 +81,19 @@ func _on_broadcast_timer_timeout() -> void:
 		looking_for_packet()
 
 func looking_for_packet():
-	if listener.get_available_packet_count() > 0:
-		print("GET PACKET")
-		var Ip_sender = listener.get_packet_ip()
-		var serverport = listener.get_packet_port()
+	while listener.get_available_packet_count() > 0:
+		var ip_sender = listener.get_packet_ip()
+		var server_port = listener.get_packet_port()
 		var bytes = listener.get_packet()
 		var data = bytes.get_string_from_ascii()
-		var roomInfo = JSON.parse_string(data)
-		var address = roomInfo.ip_address
-		print("server Ip: " + address +" serverPort: "+ str(serverport))
+		var room_data = JSON.parse_string(data)
 
-		if address != "": #BUG GODOT ? Without, windows-builds bypass the error check on connection_server
-			connection_server(address)
+		if room_data and room_data.has("ip_address"):
+			var address = room_data.ip_address
+			if not discovered_servers.has(address):
+				discovered_servers[address] = room_data
+				server_found.emit(room_data)
+				print("Found server: ", room_data.name, " at ", address)
 
 func format_and_send_packet():
 	print("Sending packets")
@@ -124,6 +127,7 @@ func _get_name() -> String:
 # --- Hosting and Joining Functions ---
 func host_game():
 	hosting_state = true
+	room_info.id_machine = 1
 	setUpBroadcast()
 	print("Hosted on ", server_ip +":"+ str(PORT))
 	var error = peer.create_server(PORT, MAX_CONNECTIONS)
@@ -134,13 +138,13 @@ func host_game():
 	_add_local_player(1)
 
 func join_game():
+	discovered_servers.clear()
 	joining_state = true
 	listeningPort()
-	#connection_server(server_ip)
-
 
 func connection_server(address : String):
 	joining_state = false
+	room_info.id_machine = 2
 	var error = peer.create_client(address, PORT)
 	match error:
 		OK:
@@ -215,7 +219,7 @@ func player_ready():
 		_update_labels()
 
 	# Notify all players of the change in status
-	rpc("notify_player_ready", player_id, players[player_id].is_ready)
+	notify_player_ready.rpc(player_id, players[player_id].is_ready)
 
 	var all_ready = true
 	for player in players.values():
@@ -225,8 +229,8 @@ func player_ready():
 	if all_ready:
 		stop_broadcast_timer()
 		is_opponent_computer = false
-		rpc("sync_opponent_type", is_opponent_computer)
-		rpc("load_game", "res://scenes/interface.tscn")
+		sync_opponent_type.rpc(is_opponent_computer)
+		load_game.rpc("res://scenes/interface.tscn")
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_opponent_type(is_computer: bool) -> void:

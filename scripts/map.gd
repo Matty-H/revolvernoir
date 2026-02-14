@@ -1,7 +1,9 @@
 extends Control
 
-@onready var player: Control = $"../../Player"
-@onready var opponent: Control = $"../../Opponent"
+var local_player: GamePlayer:
+	get:
+		if interface.player1.is_local: return interface.player1
+		return interface.player2
 
 @onready var shot: Button = $"../../UI/Action_Buttons/Shot"
 @onready var map: Control = $"."
@@ -83,10 +85,15 @@ var button_status = {
 
 
 func update_button_icon():
-	if player.position_player:
-		room_status[player.position_player] = "player"
+	# Clear previous icons that might be stale
+	for room in room_status:
+		if room_status[room] == "player" or room_status[room] == "shot":
+			room_status[room] = "null"
+
+	if local_player and local_player.position_player:
+		room_status[local_player.position_player] = "player"
 		if interface.action_stats_now == interface.action_stats.AIMING:
-			room_status[player.position_player] = "shot"
+			room_status[local_player.position_player] = "shot"
 			
 	for room_name in room_status.keys():
 		var status = room_status[room_name]
@@ -113,16 +120,16 @@ func change_player_position(x):
 	interface.player_actif.position_player = x
 	room_status[old_position]  = "null"
 
-@rpc("any_peer", "call_local", "reliable")
 func clicked_on_room(room):
 	button_selected.emit(room)
-	var button = room_status[room]
+
+	if not local_player or interface.player_actif != local_player:
+		return
+
 	match interface.action_stats_now:
 		0: #action_stats_now.FREE
 			if room_status[room] == "move":
-				change_player_position(room)
-				#print("P1 moved")
-				interface.point_paywall(1)
+				request_move.rpc_id(1, room)
 		1: #action_stats_now.AIMING
 			if room_status[room] == "shot":
 				room_shooted.emit(room)
@@ -149,3 +156,14 @@ func mouse_left_room(room):
 	if interface.action_stats_now != 3 and interface.current_phase != 0:
 		if room_status[room] == "move":
 			room_status[room] = "null"
+
+@rpc("any_peer", "call_local", "reliable")
+func request_move(room: String):
+	if not multiplayer.is_server(): return
+
+	var player = interface.player_actif
+	var adjacent = house[player.position_player]
+
+	if adjacent.has(room) and player.action_point_remaining >= 1:
+		change_player_position(room)
+		interface.point_paywall(1)

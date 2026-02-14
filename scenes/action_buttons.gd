@@ -34,7 +34,8 @@ var remote_trap_location = {
 }
 
 func _process(delta):
-	player_room = interface.player.position_player
+	if interface.player_actif == null: return
+	player_room = interface.player_actif.position_player
 	if house_skill.has(player_room):
 		if player_room == "kitchen":
 			if start_kitchen == true:
@@ -53,40 +54,64 @@ func update_skill_room():
 
 
 func _on_skill_button_pressed() -> void:
-	player_room = interface.player.position_player
-	match player_room:
-		"balcony":
-			balcony_skill.rpc()
-		"basement":
-			basement_skill.rpc()
-		"library":
-			library_skill.rpc()
-		"bedroom":
-			bedroom_skill.rpc()
-		"hall":
-			hall_skill.rpc()
-		"kitchen":
-			kitchen_skill.rpc()
+	if not interface.player_actif.is_local: return
+
+	player_room = interface.player_actif.position_player
+	request_skill.rpc_id(1, player_room)
 
 @rpc("any_peer", "call_local", "reliable")
+func request_skill(room: String):
+	if not multiplayer.is_server(): return
+
+	if interface.player_actif.position_player != room: return
+
+	var ap_cost = house_skill[room][1]
+	if interface.player_actif.action_point_remaining < ap_cost: return
+
+	match room:
+		"balcony":
+			balcony_skill()
+		"basement":
+			basement_skill()
+		"library":
+			library_skill()
+		"bedroom":
+			bedroom_skill()
+		"hall":
+			hall_skill()
+		"kitchen":
+			kitchen_skill()
+
 func balcony_skill():
-	print(str(interface.player_actif)+" jumped over balcony into the kitchen")
-	interface.player_actif.position_player = "kitchen"
+	var player_actif = interface.player_actif
+	interface.online_printer.rpc(str(player_actif.player_name)+" jumped over balcony into the kitchen")
+	player_actif.position_player = "kitchen"
 	interface.point_paywall(house_skill["balcony"][1])
 
-@rpc("any_peer", "call_local", "reliable")
 func basement_skill():
+	if interface.player_actif.is_local:
+		interactive_basement_trap()
+
+func interactive_basement_trap():
 	interface.action_stats_now = interface.action_stats.TRAP
 	for location in remote_trap_location:
 		map.room_status[location] = "set_trap"
 	var remote_trap_placed = await map.button_selected
 	
 	map.remove_icon("set_trap")
-	remote_trap_location[remote_trap_placed] = 2
 	interface.action_stats_now = interface.action_stats.FREE
-	interface.point_paywall(house_skill["basement"][1])
+	request_set_basement_trap.rpc_id(1, remote_trap_placed)
 
 @rpc("any_peer", "call_local", "reliable")
+func request_set_basement_trap(room: String):
+	if not multiplayer.is_server(): return
+	if interface.player_actif.position_player != "basement": return
+	if interface.player_actif.action_point_remaining < house_skill["basement"][1]: return
+
+	remote_trap_location[room] = 2
+	interface.online_printer.rpc(interface.player_actif.player_name + " armed a remote trap")
+	interface.point_paywall(house_skill["basement"][1])
+
 func trap_countdown():
 	for room in remote_trap_location:
 		if remote_trap_location[room] > 0:
@@ -95,7 +120,6 @@ func trap_countdown():
 				print("BOMM in the "+str(room))
 				interface.hit_verification(room)
 
-@rpc("any_peer", "call_local", "reliable")
 func library_skill():
 	if interface.player_non_actif.position_player == "kitchen" :
 		print("Kitchen hatch opened and somebody fell.")
@@ -104,14 +128,12 @@ func library_skill():
 		print("Kitchen hatch opened.")
 	interface.point_paywall(house_skill["library"][1])
 
-@rpc("any_peer", "call_local", "reliable")
 func bedroom_skill():
 	map.basement_flood = 2
 	print("The basement is now flooded.")
 	interface.basement_flood_check()
 	interface.point_paywall(house_skill["bedroom"][1])
 
-@rpc("any_peer", "call_local", "reliable")
 func hall_skill():
 	var first_floor = ["balcony","corridor","library","bedroom"]
 	if first_floor.has(interface.player_non_actif.position_player):
@@ -120,7 +142,6 @@ func hall_skill():
 		print("Listening: "+ str(map.house[interface.player_non_actif.position_player].pick_random()))
 	interface.point_paywall(house_skill["hall"][1])
 
-@rpc("any_peer", "call_local", "reliable")
 func kitchen_skill():
 	start_kitchen = false
 	interface.player_actif.action_point_remaining = 3
