@@ -16,6 +16,10 @@ config/features=PackedStringArray("4.3", "GL Compatibility")
 boot_splash/image="res://graphics/uwu.png"
 config/icon="res://icon.svg"
 
+[autoload]
+
+NetworkManager="*res://autoload/NetworkManager.gd"
+
 [display]
 
 window/size/viewport_width=540

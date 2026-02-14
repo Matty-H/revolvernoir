@@ -1,213 +1,199 @@
 extends Control
 
-@onready var player: Control = $Player
-@onready var opponent: Control = $Opponent
 @onready var map: Control = $Map_texture/Map
 @onready var action_buttons: VBoxContainer = $UI/Action_Buttons
 @onready var overlay: Control = $Overlay
 @onready var console_log: RichTextLabel = $UI/Labels/consoleLog
-@onready var server: Node = $"../../Server"
+@onready var players_container: Node = $Players # NOUVEAU: Le dossier qui contiendra les joueurs
 
-signal player_turn
-signal opponent_turn
-signal winner(winner)
-signal random_value_propagated
+signal turn_changed(is_local_turn)
 signal players_setup_completed
+signal random_value_propagated
+signal setup_phase_started
 
-enum game_phase {INITIALISATION, player_TURN, opponent_TURN, GAME_OVER}
+enum game_phase {INITIALISATION, TURN_RUNNING, GAME_OVER}
 var current_phase: game_phase = game_phase.INITIALISATION
 
-var player_actif
-var player_non_actif
+enum action_stats {FREE, AIMING, TRAP, RUNNING}
+var action_stats_now: action_stats = action_stats.FREE
 
-var ok : bool = false
-
-enum action_stats {FREE,AIMING,TRAP,RUNNING}
-var action_stats_now = action_stats.FREE
+# Fini les chemins en dur. On garde des références vers les objets GamePlayer.
+var local_player: GamePlayer
+var opponent_player: GamePlayer 
+var active_player: GamePlayer
+var players_ready_count: int = 0
 
 func _ready() -> void:
-	choosing_first_player()
-	await begin_turn()
- 
-func _process(delta: float) -> void:
-	match current_phase:
-		game_phase.INITIALISATION:
-			pass
-		game_phase.player_TURN:
-			UI_visbible()
-		game_phase.opponent_TURN:
-			UI_visbible()
-		game_phase.GAME_OVER:
-			get_tree().change_scene_to_file("res://scenes/game_over.tscn")
-			pass
+	current_phase = game_phase.INITIALISATION
+	action_buttons.visible = false
+	if multiplayer.is_server():
+		NetworkManager.spawn_players_in_scene(players_container)
+	
+	# 1. On remplace le Timer aléatoire par une sécurité stricte :
+	# On attend que les 2 pions (Joueurs ou IA) soient physiquement apparus chez tout le monde
+	while players_container.get_child_count() < 2:
+		await get_tree().process_frame 
+	
+	# 2. Maintenant on est sûr qu'ils sont là, on les identifie
+	_setup_players_references()
+	
+	# 3. Le Contrôleur écoute le Modèle (Phase 2)
+	local_player.room_selected.connect(_on_player_setup_complete)
+	opponent_player.room_selected.connect(_on_player_setup_complete)
+	
+	# 4. SYNCHRONISATION : On prévient le Serveur qu'on a fini de charger
+	if multiplayer.is_server():
+		tell_server_im_ready() # L'hôte valide pour lui-même
+	else:
+		tell_server_im_ready.rpc_id(1) # Le client envoie un Ping à l'hôte
 
-#@rpc("any_peer", "call_local", "reliable")
+# NOUVELLE FONCTION : Le serveur écoute les validations
+@rpc("any_peer", "reliable")
+func tell_server_im_ready():
+	if not multiplayer.is_server(): return # Sécurité
+	
+	players_ready_count += 1
+	
+	# Si tous les vrais joueurs connectés ont validé, on lance le jeu !
+	if players_ready_count == NetworkManager.players.size():
+		choosing_first_player()
+
+func _setup_players_references() -> void:
+	var my_id = multiplayer.get_unique_id()
+	
+	# On fouille dans le dossier Players pour trouver qui est qui grâce à leur nom (leur ID réseau)
+	for child in players_container.get_children():
+		if child.name == str(my_id):
+			local_player = child
+		else:
+			opponent_player = child
+
 func sync_random_value():
 	var random_value = randi_range(0, 1)
+	# On prévient les autres
 	propagate_random_value.rpc(random_value)
+	# On s'applique la valeur à soi-même (Hôte)
+	propagate_random_value(random_value)
 
-@rpc("any_peer", "call_local", "reliable")
+@rpc("authority", "call_local", "reliable")
 func propagate_random_value(value: int) -> void:
+	if current_phase != game_phase.INITIALISATION: 
+		return 
+	
+	# On applique le tirage
 	choosing_first_player_with_value(value)
-	ok = true  # Met à jour la variable uniquement après réception
-	random_value_propagated.emit()
+	
+	# On passe DIRECTEMENT à la phase de setup, plus aucun await réseau !
+	begin_setup_phase()
 
 func choosing_first_player():
 	current_phase = game_phase.INITIALISATION
 	action_buttons.visible = false
-	var is_opponent_computer = server.is_opponent_computer
-	if is_opponent_computer == false:
-	
-		if server.room_info.id_machine == 1:
-			sync_random_value()
-			await random_value_propagated
-		else:
-			await random_value_propagated
-	else:
-		ok = true
-		sync_random_value()
-	# Attendre que les joueurs soient configurés pour tous les clients
-	await players_setup_completed
+	propagate_random_value.rpc(randi_range(0, 1))
 
 func choosing_first_player_with_value(random_first_player: int):
-	var is_opponent_computer = server.is_opponent_computer
-	var my_machine_id = server.room_info.id_machine
-	print("=======> ID: " + str(my_machine_id) + " RAND_SEED: " + str(random_first_player))
+	var is_opponent_computer = NetworkManager.is_opponent_computer
+	online_printer("=======> RAND_SEED: " + str(random_first_player))
 	
 	if is_opponent_computer:
-		match random_first_player:
-			0:
-				online_printer.rpc("Human start")
-				player_actif = player
-				player_non_actif = opponent
-			1:
-				online_printer.rpc("Computer start")
-				player_actif = opponent
-				player_non_actif = player
+		if random_first_player == 0:
+			online_printer("Human start")
+			active_player = local_player
+		else:
+			online_printer("Computer start")
+			active_player = opponent_player
 	else:
-		match random_first_player:
-			0:
-				online_printer.rpc("Player 1 starts (" + str(my_machine_id) + ")")
-				if my_machine_id == 1:
-					player_actif = player
-					player_non_actif = opponent
-				else:
-					player_actif = opponent
-					player_non_actif = player
-			1:
-				online_printer.rpc("Player 2 starts (" + str(my_machine_id) + ")")
-				if my_machine_id == 2:
-					player_actif = player
-					player_non_actif = opponent
-				else:
-					player_actif = opponent
-					player_non_actif = player
-	
-	# On émet le signal après avoir configuré les joueurs
-	players_setup_completed.emit()
+		if random_first_player == 0:
+			online_printer("Player 1 (Host) starts")
+			active_player = local_player if multiplayer.is_server() else opponent_player
+		else:
+			online_printer("Player 2 (Client) starts")
+			active_player = opponent_player if multiplayer.is_server() else local_player
 
-func UI_visbible():
-	action_buttons.visible = true
+func begin_setup_phase():
+	online_printer("=== CHOIX DES SALLES DE DÉPART ===")
+	if local_player != null:
+		local_player.pick_starting_room(map)
+	setup_phase_started.emit()
 
 func begin_turn():
-	online_printer.rpc("=== P1 PICK A ROOM ===")
-	player.set_position_player()
-	await pop_up("Choisissez une salle", 1)
-	await player.room_selected
-	
-	online_printer.rpc("=== P2 PICK A ROOM ===")
-	opponent.set_position_player()
-	await pop_up("L'adversaire choisi une salle", 1)
-	#await opponent.room_selected
-	
-	if player_actif == player:
-		current_phase = game_phase.player_TURN
+	online_printer.rpc("=== CHOIX DES SALLES DE DÉPART ===")
+	if local_player != null:
+		print("DEBUG : J'ordonne à mon local_player (ID ", local_player.name, ") de choisir.")
+		local_player.pick_starting_room(map)
 	else:
-		current_phase = game_phase.opponent_TURN
-		opponent_turn.emit()
-	action_buttons.start_kitchen = true
-	online_printer.rpc("=== PLAYER 1 TURN ===")
+		print("ERREUR : local_player est NULL sur l'ID ", multiplayer.get_unique_id())
 
-func point_paywall(pts):
+func _on_player_setup_complete(_room_name: String):
+	# Dès qu'un joueur choisit une salle, on vérifie si la condition de passage à la Phase 3 est remplie
+	if current_phase == game_phase.INITIALISATION:
+		if local_player.position_player != "" and opponent_player.position_player != "":
+			online_printer("=== LES DEUX JOUEURS SONT PRÊTS ===")
+			current_phase = game_phase.TURN_RUNNING
+			apply_turn_state() # Lance la boucle de jeu !
+
+# --- GESTION DES TOURS ---
+func apply_turn_state():
+	if active_player == local_player:
+		action_buttons.visible = true
+		action_buttons.start_kitchen = (local_player.position_player == "kitchen")
+		turn_changed.emit(true)
+	else:
+		action_buttons.visible = false
+		turn_changed.emit(false)
+
+func point_paywall(pts: int):
 	action_buttons.start_kitchen = false
-	player_actif.action_point_remaining -= pts
-	if player_actif.action_point_remaining <= 0:
-		player_non_actif.action_point_remaining = 2
-		switch_turn()
+	
+	# SÉCURITÉ : Seul le joueur dont c'est le tour a le droit de demander à payer
+	if active_player == local_player:
+		# On demande au réseau de déduire les points pour TOUT LE MONDE en même temps
+		sync_spend_ap.rpc(pts)
 
-func basement_flood_check():
-	online_printer.rpc("Flood: "+str(map.basement_flood))
-	if map.basement_flood > 0:
-		map.basement_flood -= 1
-		if hit_verification("basement"):
-			online_printer.rpc("blop blop")
-			basement_relocalisation()
-			return
-		else:
-			online_printer.rpc("pas procédure relocalisation")
-		
+@rpc("any_peer", "call_local", "reliable")
+func sync_spend_ap(pts: int) -> void:
+	active_player.action_point_remaining -= pts
+	online_printer("PA restants pour " + active_player.name + " : " + str(active_player.action_point_remaining))
+	active_player.stats_changed.emit(active_player.life, active_player.action_point_remaining)
+	if active_player.action_point_remaining <= 0:
+		execute_switch_turn()
 
-func switch_turn() -> void:
-	basement_flood_check()
-	if current_phase == game_phase.player_TURN:
-		online_printer.rpc("=== PLAYER 2 TURN ===")
-		await pop_up("Changement de tour", 0.5)
-
-		current_phase = game_phase.opponent_TURN
-		player_actif = opponent
-		player_non_actif = player
-		opponent_turn.emit()
-		
-	elif current_phase == game_phase.opponent_TURN:
-		online_printer.rpc("=== PLAYER 1 TURN ===")
-		await pop_up("Changement de tour", 0.5)
-		
-		current_phase = game_phase.player_TURN
-		player_actif = player
-		player_non_actif = opponent
-		player_turn.emit()
-		
-	action_buttons.trap_countdown()
-	if player_actif.position_player == "kitchen":
-		action_buttons.start_kitchen = true
+func execute_switch_turn() -> void:
+	if active_player == local_player:
+		online_printer("=== FIN DE MON TOUR ===")
+		pop_up("Tour de l'adversaire", 1)
+		active_player = opponent_player
 	else:
-		action_buttons.start_kitchen = false
+		online_printer("=== DÉBUT DE TON TOUR ===")
+		pop_up("C'est à toi !", 1)
+		active_player = local_player
+		
+	# On redonne 2 AP au nouveau joueur
+	active_player.action_point_remaining = 2
+	active_player.stats_changed.emit(active_player.life, active_player.action_point_remaining)
 
+	apply_turn_state()
 
-func basement_relocalisation():
-	var rooms_list = map.house["basement"]
-	match player_actif:
-		player:
-			pass
-		opponent:
-			player_actif.position_player = rooms_list[randi() % rooms_list.size()]
-			online_printer.rpc("P2 fled into "+str(player_actif.position_player))
-			player_actif.room_selected.emit()
-
-func hit_verification(x):
-	if dealing_hit(x):
-		win_condition()
-		return true
-
-func dealing_hit(x):
-	if x == player_non_actif.position_player:
-		player_non_actif.life -= 1
-		online_printer.rpc("HIT")
-		return true
-	else:
-		return false
-
-func win_condition():
-	if player_non_actif.life <= 0:
-		online_printer.rpc(str(player_actif.get_name())+" won!")
-		current_phase == game_phase.GAME_OVER
+# --- UTILITAIRES ---
+func pop_up(message: String, timer: float):
+	# Le Contrôleur donne un ordre simple à la Vue, sans se soucier de COMMENT elle le fait.
+	overlay.get_node("opacifier").pop_up(message, timer)
 
 var print_line : int = 0
 @rpc("any_peer", "call_local", "reliable")
 func online_printer(printing_paper):
-	print(str("(" + str(server.room_info.id_machine)) + ") " + printing_paper)
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = multiplayer.get_unique_id() # Si appelé en local
+	print("(" + str(sender_id) + ") " + printing_paper)
 	print_line += 1
 	console_log.text += str(print_line) + "/ " + printing_paper + "\n"
-
-func pop_up(message : String, timer : int):
-	overlay.get_node("opacifier").pop_up(message, timer)
+	
+func hit_verification(target_room: String):
+	# On vérifie si la salle ciblée correspond à la position en mémoire de l'adversaire
+	if opponent_player.position_player == target_room:
+		online_printer.rpc("💥 TOUCHÉ ! " + opponent_player.name + " prend 1 dégât !")
+		
+		# On ordonne via RPC à l'adversaire de perdre 1 point de vie
+		opponent_player.take_damage.rpc(1)
+	else:
+		online_printer.rpc("💨 MANQUÉ ! Il n'y avait personne dans " + target_room + ".")

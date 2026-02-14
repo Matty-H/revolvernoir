@@ -4,30 +4,30 @@ extends Button
 @onready var interface: Control = $"../../.."
 @onready var shot: Button = $"."
 
-@onready var player: Control = $"../../../Player"
-@onready var opponent: Control = $"../../../Opponent"
-
-
 var shooting_target
 var fire_place
 var is_running
 
 var target = {
-	#1st Floor
 	"balcony": ["balcony", "corridor", "hall", "kitchen", "dining_room"],
 	"library": ["library", "corridor", "balcony"],
 	"corridor": [ "corridor", "balcony", "bedroom", "library"],
 	"bedroom": [ "bedroom", "corridor", "balcony"],
-	#Ground Floor
 	"hall": ["hall", "dining_room", "kitchen"],
 	"kitchen": ["kitchen", "hall", "dining_room"],
 	"dining_room": ["dining_room", "hall", "kitchen"],
-	#Basement
 	"basement": ["basement", "hall", "dining_room"],
-	}
-
+}
 
 func _on_pressed() -> void:
+	# SÉCURITÉ ABSOLUE (Le Videur) :
+	if interface.current_phase != interface.game_phase.TURN_RUNNING:
+		print("Action refusée : La partie n'a pas encore commencé.")
+		return
+	if interface.active_player != interface.local_player:
+		print("Action refusée : Ce n'est pas ton tour.")
+		return
+	
 	if shot.text == "Cancel":
 		cancel_shot()
 		return
@@ -39,52 +39,43 @@ func firing():
 			await start_aiming()
 			await start_runing()
 	else:
-		print("No Action Points")
-		return
+		print("Pas assez de points d'action")
 
 func start_firing() -> bool:
-	fire_place = interface.player_actif.position_player
+	fire_place = interface.local_player.position_player
 	shooting_target = target[fire_place]
-	if interface.player_actif.action_point_remaining >= 2:
-		return true
-	else:
-		return false
+	return interface.local_player.action_point_remaining >= 2
 		
 func start_aiming():
 	shot.text = "Cancel"
-	fire_place = interface.player_actif.position_player
+	fire_place = interface.local_player.position_player
 	interface.action_stats_now = interface.action_stats.AIMING
-	match interface.player_actif:
-		player:
-			for location in shooting_target:
-				map.room_status[location] = "shot"
-			shooting_target = await map.room_shooted
-			interface.action_stats_now = interface.action_stats.RUNNING
-		opponent:
-			var fire = shooting_target[randi() % shooting_target.size()]
-			shooting_target = fire
-
+	
+	for location in shooting_target:
+		map.room_status[location] = "shot"
+		
+	# On attend que le joueur clique sur une salle (géré par map.gd)
+	shooting_target = await map.room_shooted
+	interface.action_stats_now = interface.action_stats.RUNNING
 
 func start_runing():
 	map.remove_icon("shot")
 	shot.text = "Running"
 	is_running = true
 	interface.action_stats_now = interface.action_stats.RUNNING
-	print("Fire: "+str(fire_place)+" >> "+str(shooting_target))
+	
+	interface.online_printer.rpc("Tir : de " + str(fire_place) + " vers " + str(shooting_target))
 	interface.hit_verification(shooting_target)
 
-	match interface.player_actif:
-		player:
-			for location in map.adjacent_locations:
-				map.room_status[location] = "move"
-			await map.room_fled
-		opponent:
-			var room_available = map.house[fire_place]
-			interface.player_actif.position_player = room_available[randi() % room_available.size()]
+	# Fausse piste : Le tireur doit s'enfuir
+	for location in map.adjacent_locations:
+		map.room_status[location] = "move"
+	
+	await map.room_fled
 
 	map.remove_icon("move")
 	shot.text = "Shot"
-	print("Mob fled")
+	interface.online_printer.rpc("Le tireur a fui")
 	is_running = false
 	interface.action_stats_now = interface.action_stats.FREE
 	interface.point_paywall(2)

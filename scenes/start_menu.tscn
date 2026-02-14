@@ -1,10 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://c4cn761h1h20o"]
+[gd_scene load_steps=2 format=3 uid="uid://c4cn761h1h20o"]
 
 [ext_resource type="Script" path="res://scenes/start_menu.gd" id="1_vt67u"]
-[ext_resource type="PackedScene" uid="uid://d1j2gpd63dy0y" path="res://scenes/player.tscn" id="2_gc6ul"]
-[ext_resource type="Script" path="res://scenes/server.gd" id="3_uw48u"]
 
-[node name="Control" type="Control"]
+[node name="main_menu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,49 +10,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_vt67u")
-player_scene = ExtResource("2_gc6ul")
-
-[node name="Server" type="Node" parent="."]
-unique_name_in_owner = true
-script = ExtResource("3_uw48u")
-
-[node name="BroadcastTimer" type="Timer" parent="Server"]
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Server"]
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 81.0
-grow_horizontal = 2
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Server/VBoxContainer"]
-visible = false
-layout_mode = 2
-
-[node name="Bounding" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-text = "Bounding: "
-
-[node name="VSeparator" type="VSeparator" parent="Server/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ip" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-text = "IP"
-horizontal_alignment = 2
-
-[node name="VSeparator2" type="VSeparator" parent="Server/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ID" type="Label" parent="Server/VBoxContainer/HBoxContainer"]
-layout_mode = 2
-text = "IP"
-horizontal_alignment = 2
-
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("res://scenes/interface.tscn")
-spawn_path = NodePath("../level")
 
 [node name="level" type="Control" parent="."]
 anchors_preset = 0
@@ -78,17 +33,17 @@ layout_mode = 2
 size_flags_vertical = 3
 text = "Play vs Computer"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Start_menu"]
+[node name="Multiplayer" type="HBoxContainer" parent="Start_menu"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Host" type="Button" parent="Start_menu/HBoxContainer"]
+[node name="Host" type="Button" parent="Start_menu/Multiplayer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Host"
 
-[node name="Join" type="Button" parent="Start_menu/HBoxContainer"]
+[node name="Join" type="Button" parent="Start_menu/Multiplayer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -145,10 +100,43 @@ layout_mode = 2
 size_flags_vertical = 3
 text = "Back"
 
-[connection signal="timeout" from="Server/BroadcastTimer" to="Server" method="_on_broadcast_timer_timeout"]
+[node name="BroadcastTimer" type="Timer" parent="."]
+
+[node name="Debugger" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 81.0
+grow_horizontal = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Debugger"]
+layout_mode = 2
+
+[node name="Bounding" type="Label" parent="Debugger/HBoxContainer"]
+layout_mode = 2
+text = "Bounding: "
+
+[node name="VSeparator" type="VSeparator" parent="Debugger/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ip" type="Label" parent="Debugger/HBoxContainer"]
+layout_mode = 2
+text = "IP"
+horizontal_alignment = 2
+
+[node name="VSeparator2" type="VSeparator" parent="Debugger/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ID" type="Label" parent="Debugger/HBoxContainer"]
+layout_mode = 2
+text = "IP"
+horizontal_alignment = 2
+
 [connection signal="pressed" from="Start_menu/Play" to="." method="_on_play_pressed"]
-[connection signal="pressed" from="Start_menu/HBoxContainer/Host" to="." method="_on_host_pressed"]
-[connection signal="pressed" from="Start_menu/HBoxContainer/Join" to="." method="_on_join_pressed"]
+[connection signal="pressed" from="Start_menu/Multiplayer/Host" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="Start_menu/Multiplayer/Join" to="." method="_on_join_pressed"]
 [connection signal="pressed" from="Start_menu/Settings" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="Start_menu/Quit" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="Lobby/Ready" to="." method="_on_ready_pressed"]

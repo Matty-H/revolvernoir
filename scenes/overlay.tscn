@@ -19,6 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_ldsd5")
 
 [node name="TextureRect" type="TextureRect" parent="opacifier"]
@@ -28,6 +29,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 texture = ExtResource("2_1nnah")
 
 [node name="Label" type="Label" parent="opacifier"]
@@ -37,7 +39,6 @@ anchor_right = 1.0
 offset_top = 252.0
 offset_bottom = 275.0
 grow_horizontal = 2
-mouse_filter = 1
 text = "Tour du joueur"
 horizontal_alignment = 1
 vertical_alignment = 1

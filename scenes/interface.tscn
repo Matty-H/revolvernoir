@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/interface.gd" id="1_x0kiy"]
 [ext_resource type="PackedScene" uid="uid://d1j2gpd63dy0y" path="res://scenes/player.tscn" id="2_0o0f1"]
-[ext_resource type="Script" path="res://scripts/opponent.gd" id="3_fkv74"]
+[ext_resource type="Script" path="res://scripts/computer.gd" id="3_fkv74"]
 [ext_resource type="Script" path="res://scripts/labels.gd" id="4_mxvqg"]
 [ext_resource type="Script" path="res://scenes/traps.gd" id="5_d673i"]
 [ext_resource type="Texture2D" uid="uid://cy1twsn36m7rc" path="res://graphics/dark_texture.png" id="5_x8kd3"]
@@ -54,25 +54,17 @@ replication_interval = 0.5
 delta_interval = 0.5
 replication_config = SubResource("SceneReplicationConfig_gkf33")
 
-[node name="Opponent" type="Control" parent="."]
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
+spawn_path = NodePath("../Players")
+
+[node name="Players" parent="." instance=ExtResource("2_0o0f1")]
+
+[node name="Computer" type="Control" parent="."]
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("3_fkv74")
-
-[node name="Player" parent="." instance=ExtResource("2_0o0f1")]
-
-[node name="PlayerPeer" parent="." instance=ExtResource("2_0o0f1")]
-
-[node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
-layout_mode = 1
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
-offset_right = 540.0
-offset_bottom = 960.0
-grow_horizontal = 1
-grow_vertical = 1
 
 [node name="Map_texture" type="TextureRect" parent="."]
 layout_mode = 2
@@ -327,6 +319,15 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 30
 text = "Shot"
 script = ExtResource("7_qcyx1")
+
+[node name="Overlay" parent="." instance=ExtResource("11_rpv3s")]
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_right = 540.0
+offset_bottom = 960.0
+grow_horizontal = 1
+grow_vertical = 1
 
 [connection signal="pressed" from="UI/Action_Buttons/Room_skill/skill_button" to="UI/Action_Buttons" method="_on_skill_button_pressed"]
 [connection signal="pressed" from="UI/Action_Buttons/Traps_Listen/Traps/Trap_1" to="UI/Action_Buttons/Traps_Listen/Traps" method="_on_trap_1_pressed"]
